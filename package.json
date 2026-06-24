@@ -1,0 +1,29 @@
+{
+  "name": "macro-tracker-next",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "import:ciqual": "node scripts/import-ciqual.cjs data-sources/ciqual.xlsx",
+    "import:ciqual:xml": "node scripts/import-ciqual-xml.cjs"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "latest",
+    "next": "latest",
+    "react": "latest",
+    "react-dom": "latest",
+    "lucide-react": "latest",
+    "xlsx": "latest"
+  },
+  "devDependencies": {
+    "@types/node": "latest",
+    "@types/react": "latest",
+    "@types/react-dom": "latest",
+    "eslint": "latest",
+    "eslint-config-next": "latest",
+    "typescript": "latest"
+  }
+}

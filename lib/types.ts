@@ -1,0 +1,61 @@
+export type DietType = "omnivore" | "flexitarien" | "pescetarien" | "vegetarien" | "vegan" | "sans_porc";
+export type GoalType = "perte" | "maintien" | "prise_masse" | "lean_bulk";
+export type Store = "leclerc" | "intermarche" | "carrefour" | "auchan" | "lidl" | "aldi" | "monoprix";
+export type MealType = "Petit-déjeuner" | "Déjeuner" | "Dîner" | "Collation";
+
+export type Food = {
+  id: string;
+  name: string;
+  category: string;
+  state: "brut" | "cuit" | "egoutte" | "prepare" | "standard";
+  unit: "g" | "ml" | "piece";
+  purchaseUnit: string;
+  packageSize: number;
+  usableInRecipe: boolean;
+  diets: DietType[];
+  allergens: string[];
+  prices: Record<Store, number>;
+  macros: { kcal: number; protein: number; carbs: number; fat: number; fiber: number };
+  micros?: Record<string, number>;
+  reliability: "precis" | "standard" | "estime";
+  source: "ciqual" | "openfoodfacts" | "manual" | "estimated";
+  sourceRef?: string;
+  ciqualCode?: string;
+  barcode?: string;
+  brand?: string;
+  aliases?: string[];
+  icon?: string;
+  imageUrl?: string;
+  servingLabel?: string;
+  servingGrams?: number;
+};
+
+export type Profile = {
+  id: string;
+  firstName: string;
+  lastName: string;
+  sex: "homme" | "femme";
+  age: number;
+  heightCm: number;
+  weightKg: number;
+  bodyFatPct?: number;
+  activity: number;
+  goal: GoalType;
+  diet: DietType;
+  weeklyBudget: number;
+  store: Store;
+  allergies: string[];
+  dislikedFoods: string[];
+  likedFoods: string[];
+  trainingDays: number[];
+  maxPrepTime: number;
+  cookingLevel: "etudiant" | "normal" | "meal_prep" | "famille";
+};
+
+export type Targets = { kcal: number; protein: number; carbs: number; fat: number };
+export type MealLogItem = { id: string; foodId: string; qty: number; meal: MealType; date: string; displayQty?: number; displayUnit?: "g" | "ml" | "piece" };
+export type PantryItem = { id: string; foodId: string; qty: number; unit: "g" | "ml" | "piece"; displayQty?: number; displayUnit?: "g" | "ml" | "piece"; expiresAt?: string };
+export type WeightLog = { id: string; date: string; weightKg: number; note?: string };
+export type RecipeIngredient = { foodId: string; qty: number };
+export type Recipe = { id: string; title: string; mealType: MealType; servings: number; prepTime: number; difficulty: "facile" | "moyen" | "avance"; storageDays: number; tags: string[]; diets: DietType[]; instructions: string[]; ingredients: RecipeIngredient[]; isCustom?: boolean };
+export type ProgramMeal = { date: string; dayType: "entrainement" | "repos"; mealType: MealType; recipeId: string };
