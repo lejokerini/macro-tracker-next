@@ -128,6 +128,7 @@ export default function MacroTrackerApp() {
   const [offError, setOffError] = useState("");
   const [snapOpen, setSnapOpen] = useState(false);
   const [barcodeOpen, setBarcodeOpen] = useState(false);
+  const [theme, setTheme] = useState<"light" | "dark">("light");
   const supabase = useMemo(() => createBrowserSupabaseClient(), []);
   const [session, setSession] = useState<Session | null>(null);
   const [authEmail, setAuthEmail] = useState("");
@@ -369,6 +370,15 @@ export default function MacroTrackerApp() {
     autoSaveTimer.current = setTimeout(() => { persistCloud("auto"); }, 1600);
     return () => { if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current); };
   }, [state, autoSync, session?.user?.id, supabase]);
+  useEffect(() => { setTheme(((document.documentElement.dataset.theme as "light" | "dark") || "light")); }, []);
+  function toggleTheme() {
+    setTheme(prev => {
+      const next = prev === "dark" ? "light" : "dark";
+      document.documentElement.dataset.theme = next;
+      try { localStorage.setItem("calsnap-theme", next); } catch {}
+      return next;
+    });
+  }
   function toggleRecipeItem(key: string) { setCheckedRecipeItems(s => ({ ...s, [key]: !s[key] })); }
   function resetRecipeTracking() { setCheckedRecipeItems({}); }
 
@@ -388,7 +398,7 @@ export default function MacroTrackerApp() {
         <span className="cloud-mini">{session?.user ? `Cloud connecté · ${autoSync ? "auto-save ON" : "auto-save OFF"}` : supabase ? "Cloud prêt · non connecté" : "Cloud non configuré"}</span>
       </div>
     </header>
-    <nav className="tabs">{(["dashboard","profil","journal","catalogue","recettes","programme","courses","placard","poids","sauvegarde"] as Tab[]).map(t => <button key={t} className={`tab ${tab===t?"active":""}`} onClick={()=>setTab(t)}>{TAB_LABELS[t]}</button>)}</nav>
+    <nav className="tabs">{(["dashboard","profil","journal","catalogue","recettes","programme","courses","placard","poids","sauvegarde"] as Tab[]).map(t => <button key={t} className={`tab ${tab===t?"active":""}`} onClick={()=>setTab(t)}>{TAB_LABELS[t]}</button>)}<button className="theme-toggle" onClick={toggleTheme} aria-label="Basculer le thème clair/sombre">{theme === "dark" ? "☀️ Clair" : "🌙 Sombre"}</button></nav>
 
     {tab === "dashboard" && <section className="grid">
       {!activeProfile && <div className="span-12 notice">Commence par créer un profil. L'app ne crée aucun profil par défaut.</div>}
