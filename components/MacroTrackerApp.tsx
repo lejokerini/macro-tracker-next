@@ -129,6 +129,7 @@ export default function MacroTrackerApp() {
   const [snapOpen, setSnapOpen] = useState(false);
   const [barcodeOpen, setBarcodeOpen] = useState(false);
   const [theme, setTheme] = useState<"light" | "dark">("light");
+  const [menuOpen, setMenuOpen] = useState(false);
   const supabase = useMemo(() => createBrowserSupabaseClient(), []);
   const [session, setSession] = useState<Session | null>(null);
   const [authEmail, setAuthEmail] = useState("");
@@ -444,7 +445,7 @@ export default function MacroTrackerApp() {
       <div className="card span-3 kpi"><span className="muted">Programme</span><br/><strong>{programScore?.score ?? 0}/100</strong><br/><span className="muted">score qualité</span></div>
       <div className="card span-3 kpi"><span className="muted">Courses</span><br/><strong>{shopping.reduce((s,x)=>s+x.price,0).toFixed(2)} €</strong><br/><span className="muted">estimé après placard</span></div>
       <div className="card span-12"><h2>Actions rapides</h2><div className="row"><button className="btn" onClick={()=>setSnapOpen(true)}>📸 Snap mon repas</button><button className="btn" onClick={()=>setBarcodeOpen(true)}>🏷️ Scanner un code-barres</button><button className="btn" disabled={!activeProfile} onClick={generate}>Générer 7 jours</button><button className="btn secondary" onClick={()=>setTab("journal")}>Ajouter un aliment</button><button className="btn secondary" onClick={()=>setTab("recettes")}>Cuisiner une recette</button><button className="btn secondary" onClick={()=>setTab("courses")}>Voir courses</button></div></div>
-      <div className="card span-12"><div className="space"><h2>💧 Hydratation</h2><span className="muted">{(state.water||{})[date]||0} / {activeProfile ? Math.max(1500, Math.round(activeProfile.weightKg*35)) : 2000} ml aujourd'hui</span></div><div className="progress water-progress"><div style={{width:`${Math.min(100, (((state.water||{})[date]||0) / (activeProfile ? Math.max(1500, Math.round(activeProfile.weightKg*35)) : 2000))*100)}%`}} /></div><div className="row" style={{marginTop:12}}><button className="btn secondary" onClick={()=>addWater(250)}>+ Verre · 250 ml</button><button className="btn secondary" onClick={()=>addWater(500)}>+ Bouteille · 500 ml</button><button className="btn secondary" onClick={()=>addWater(-250)} disabled={!((state.water||{})[date])}>− 250 ml</button></div></div>
+      <div className="card span-12"><div className="space"><h2>💧 Hydratation</h2><span className="muted">{(state.water||{})[date]||0} / {activeProfile ? Math.max(1500, Math.round(activeProfile.weightKg*35)) : 2000} ml aujourd'hui</span></div><div className="progress water-progress"><div style={{width:`${Math.min(100, (((state.water||{})[date]||0) / (activeProfile ? Math.max(1500, Math.round(activeProfile.weightKg*35)) : 2000))*100)}%`}} /></div><div className="row" style={{marginTop:12}}><button className="btn secondary" onClick={()=>addWater(100)}>+ 10 cl</button><button className="btn secondary" onClick={()=>addWater(150)}>+ 15 cl</button><button className="btn secondary" onClick={()=>addWater(250)}>+ Verre · 25 cl</button><button className="btn secondary" onClick={()=>addWater(500)}>+ Bouteille · 50 cl</button><button className="btn secondary" onClick={()=>addWater(-100)} disabled={!((state.water||{})[date])}>− 10 cl</button></div></div>
     </section>}
 
     {tab === "profil" && <section className="grid">
@@ -491,6 +492,24 @@ export default function MacroTrackerApp() {
 
     <SnapModal open={snapOpen} onClose={()=>setSnapOpen(false)} onConfirm={addScannedItems} defaultMeal={selectedMeal} date={date} />
     <BarcodeScanModal open={barcodeOpen} onClose={()=>setBarcodeOpen(false)} onConfirm={addBarcodeFood} defaultMeal={selectedMeal} date={date} />
+
+    <nav className="bottom-nav">
+      <button className={`bn-item ${tab==="dashboard"?"active":""}`} onClick={()=>setTab("dashboard")}><span className="bn-ico">🏠</span>Accueil</button>
+      <button className={`bn-item ${tab==="journal"?"active":""}`} onClick={()=>setTab("journal")}><span className="bn-ico">📓</span>Journal</button>
+      <button className="bn-snap" onClick={()=>setSnapOpen(true)} aria-label="Snap mon repas"><span>📷</span></button>
+      <button className={`bn-item ${tab==="catalogue"?"active":""}`} onClick={()=>setTab("catalogue")}><span className="bn-ico">🥑</span>Aliments</button>
+      <button className={`bn-item ${menuOpen?"active":""}`} onClick={()=>setMenuOpen(true)}><span className="bn-ico">☰</span>Menu</button>
+    </nav>
+
+    {menuOpen && <div className="sheet-overlay" onClick={()=>setMenuOpen(false)}>
+      <div className="sheet" onClick={e=>e.stopPropagation()}>
+        <div className="sheet-head"><strong>Menu</strong><button className="snap-close" onClick={()=>setMenuOpen(false)} aria-label="Fermer">✕</button></div>
+        <div className="sheet-group"><span className="sheet-group-title">Suivi</span><button className="sheet-item" onClick={()=>{setTab("poids");setMenuOpen(false);}}>⚖️ Poids</button></div>
+        <div className="sheet-group"><span className="sheet-group-title">Cuisine & planning</span><button className="sheet-item" onClick={()=>{setTab("recettes");setMenuOpen(false);}}>🍳 Recettes</button><button className="sheet-item" onClick={()=>{setTab("programme");setMenuOpen(false);}}>🗓️ Programme</button><button className="sheet-item" onClick={()=>{setTab("courses");setMenuOpen(false);}}>🛒 Courses</button><button className="sheet-item" onClick={()=>{setTab("placard");setMenuOpen(false);}}>🧺 Placard</button></div>
+        <div className="sheet-group"><span className="sheet-group-title">Mon compte</span><button className="sheet-item" onClick={()=>{setTab("profil");setMenuOpen(false);}}>👤 Profil</button><button className="sheet-item" onClick={()=>{setTab("sauvegarde");setMenuOpen(false);}}>☁️ Mon compte</button></div>
+        <div className="sheet-group"><span className="sheet-group-title">Apparence</span><button className="sheet-item" onClick={toggleTheme}>{theme==="dark"?"☀️ Thème clair":"🌙 Thème sombre"}</button></div>
+      </div>
+    </div>}
   </main>;
 }
 
