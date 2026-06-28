@@ -28,6 +28,9 @@ export type Food = {
   imageUrl?: string;
   servingLabel?: string;
   servingGrams?: number;
+  nutriScore?: string;
+  novaGroup?: number;
+  ingredientsText?: string;
 };
 
 export type Profile = {

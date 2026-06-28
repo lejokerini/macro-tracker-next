@@ -15,14 +15,14 @@ import { CIQUAL_FOOD_COUNT } from "@/data/ciqual-foods.generated";
 import type { DietType, Food, MealLogItem, MealType, PantryItem, Profile, ProgramMeal, Recipe, Store, WeightLog } from "@/lib/types";
 
 type Tab = "dashboard" | "profil" | "journal" | "catalogue" | "recettes" | "programme" | "courses" | "placard" | "poids" | "sauvegarde";
-type State = { profiles: Profile[]; activeProfileId?: string; logs: MealLogItem[]; pantry: PantryItem[]; weights: WeightLog[]; recipes: Recipe[]; program: ProgramMeal[]; offFoods: Food[] };
+type State = { profiles: Profile[]; activeProfileId?: string; logs: MealLogItem[]; pantry: PantryItem[]; weights: WeightLog[]; recipes: Recipe[]; program: ProgramMeal[]; offFoods: Food[]; favorites: string[]; water: Record<string, number> };
 type MicroKey = "sugars" | "salt" | "calcium" | "iron" | "magnesium" | "potassium" | "sodium" | "zinc" | "vitA" | "vitD" | "vitE" | "vitC" | "vitB1" | "vitB2" | "vitB3" | "vitB6" | "vitB9" | "vitB12";
 
 const TAB_LABELS: Record<Tab, string> = { dashboard: "Dashboard", profil: "Profil", journal: "Journal", catalogue: "Catalogue", recettes: "Recettes", programme: "Programme", courses: "Courses", placard: "Placard", poids: "Poids", sauvegarde: "Mon compte" };
 const STORAGE_KEY = "macro-tracker-next-v3";
 const MEALS: MealType[] = ["Petit-déjeuner", "Déjeuner", "Dîner", "Collation"];
 const ALLERGENS = ["gluten","lait","oeufs","soja","fruits_a_coque","poisson","crustaces","mollusques","sesame","moutarde","celeri","alcool"];
-const emptyState: State = { profiles: [], logs: [], pantry: [], weights: [], recipes: seedRecipes, program: [], offFoods: [] };
+const emptyState: State = { profiles: [], logs: [], pantry: [], weights: [], recipes: seedRecipes, program: [], offFoods: [], favorites: [], water: {} };
 function hasUserData(state: State) {
   return state.profiles.length > 0 || state.logs.length > 0 || state.pantry.length > 0 || state.weights.length > 0 || state.program.length > 0;
 }
@@ -148,6 +148,19 @@ export default function MacroTrackerApp() {
   }, [state.offFoods, offResults]);
   const allFoods = useMemo(() => [...dynamicFoods, ...foods], [dynamicFoods]);
   function findFoodAny(id?: string) { return id ? allFoods.find(f => f.id === id) : undefined; }
+  const recentFoods = useMemo(() => {
+    const seen = new Set<string>();
+    const out: Food[] = [];
+    for (let i = state.logs.length - 1; i >= 0 && out.length < 10; i--) {
+      const id = state.logs[i].foodId;
+      if (seen.has(id)) continue;
+      seen.add(id);
+      const f = allFoods.find(x => x.id === id);
+      if (f) out.push(f);
+    }
+    return out;
+  }, [state.logs, allFoods]);
+  const favoriteFoods = useMemo(() => (state.favorites || []).map(id => allFoods.find(f => f.id === id)).filter((f): f is Food => !!f), [state.favorites, allFoods]);
 
   const activeProfile = state.profiles.find(p => p.id === state.activeProfileId);
   const targets = activeProfile ? calculateTargets(activeProfile) : null;
@@ -304,6 +317,24 @@ export default function MacroTrackerApp() {
     }));
     setTab("journal");
   }
+  function quickAddFood(food: Food) {
+    const q = isPieceInput(food) ? 1 : 100;
+    const baseQty = quantityToNutritionGrams(food, q);
+    setState(s => ({
+      ...s,
+      offFoods: (food.source === "openfoodfacts" || food.source === "estimated") && !(s.offFoods || []).some(f => f.id === food.id) ? [...(s.offFoods || []), food] : (s.offFoods || []),
+      logs: [...s.logs, { id: uid("log"), foodId: food.id, qty: baseQty, displayQty: q, displayUnit: isPieceInput(food) ? "piece" : food.unit, meal: selectedMeal, date }],
+    }));
+  }
+  function toggleFavorite(food: Food) {
+    setState(s => {
+      const favs = s.favorites || [];
+      const isFav = favs.includes(food.id);
+      const nextFavs = isFav ? favs.filter(x => x !== food.id) : [...favs, food.id];
+      const needsPersist = !isFav && (food.source === "openfoodfacts" || food.source === "estimated") && !(s.offFoods || []).some(f => f.id === food.id);
+      return { ...s, favorites: nextFavs, offFoods: needsPersist ? [...(s.offFoods || []), food] : (s.offFoods || []) };
+    });
+  }
   function removeLog(id: string) { setState(s => ({ ...s, logs: s.logs.filter(x=>x.id!==id) })); }
   function generate() { if(!activeProfile) return; setState(s => ({ ...s, program: generateProgram(activeProfile, s.recipes, 7) })); setTab("programme"); }
   function addPantry(foodId: string, q: number) {
@@ -313,6 +344,12 @@ export default function MacroTrackerApp() {
     setState(s => ({ ...s, offFoods: food.source === "openfoodfacts" && !(s.offFoods || []).some(f => f.id === food.id) ? [...(s.offFoods || []), food] : (s.offFoods || []), pantry: [...s.pantry, { id: uid("pantry"), foodId, qty: baseQty, unit: food.unit, displayQty: q, displayUnit: isPieceInput(food) ? "piece" : food.unit }] }));
   }
   function addWeight(w: number) { setState(s => ({ ...s, weights: [...s.weights, { id: uid("weight"), date: today(), weightKg: w, note: "Pesée à jeun" }] })); }
+  function addWater(ml: number) {
+    setState(s => {
+      const cur = (s.water || {})[date] || 0;
+      return { ...s, water: { ...(s.water || {}), [date]: Math.max(0, cur + ml) } };
+    });
+  }
   function exportJson() { const blob = new Blob([JSON.stringify(state,null,2)], { type:"application/json" }); const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="macro-tracker-backup.json"; a.click(); URL.revokeObjectURL(a.href); }
   function importJson(file: File | null) { if(!file) return; file.text().then(t => { try { setState({ ...emptyState, ...JSON.parse(t) }); } catch { alert("Fichier invalide"); } }); }
   async function signUp() {
@@ -407,6 +444,7 @@ export default function MacroTrackerApp() {
       <div className="card span-3 kpi"><span className="muted">Programme</span><br/><strong>{programScore?.score ?? 0}/100</strong><br/><span className="muted">score qualité</span></div>
       <div className="card span-3 kpi"><span className="muted">Courses</span><br/><strong>{shopping.reduce((s,x)=>s+x.price,0).toFixed(2)} €</strong><br/><span className="muted">estimé après placard</span></div>
       <div className="card span-12"><h2>Actions rapides</h2><div className="row"><button className="btn" onClick={()=>setSnapOpen(true)}>📸 Snap mon repas</button><button className="btn" onClick={()=>setBarcodeOpen(true)}>🏷️ Scanner un code-barres</button><button className="btn" disabled={!activeProfile} onClick={generate}>Générer 7 jours</button><button className="btn secondary" onClick={()=>setTab("journal")}>Ajouter un aliment</button><button className="btn secondary" onClick={()=>setTab("recettes")}>Cuisiner une recette</button><button className="btn secondary" onClick={()=>setTab("courses")}>Voir courses</button></div></div>
+      <div className="card span-12"><div className="space"><h2>💧 Hydratation</h2><span className="muted">{(state.water||{})[date]||0} / {activeProfile ? Math.max(1500, Math.round(activeProfile.weightKg*35)) : 2000} ml aujourd'hui</span></div><div className="progress water-progress"><div style={{width:`${Math.min(100, (((state.water||{})[date]||0) / (activeProfile ? Math.max(1500, Math.round(activeProfile.weightKg*35)) : 2000))*100)}%`}} /></div><div className="row" style={{marginTop:12}}><button className="btn secondary" onClick={()=>addWater(250)}>+ Verre · 250 ml</button><button className="btn secondary" onClick={()=>addWater(500)}>+ Bouteille · 500 ml</button><button className="btn secondary" onClick={()=>addWater(-250)} disabled={!((state.water||{})[date])}>− 250 ml</button></div></div>
     </section>}
 
     {tab === "profil" && <section className="grid">
@@ -426,7 +464,7 @@ export default function MacroTrackerApp() {
     </form></div><div className="card span-4"><h3>Profils existants</h3><div className="list">{state.profiles.map(p=><div className="item" key={p.id}><div className="space"><strong>{p.firstName} {p.lastName}</strong><button className="btn secondary" onClick={()=>setState(s=>({...s,activeProfileId:p.id}))}>Activer</button></div><span className="muted">{p.goal} · {p.diet}</span><div className="row" style={{marginTop:8}}><button className="btn danger" onClick={()=>{if(confirm("Supprimer ce profil ?")) setState(s=>({ ...s, profiles: s.profiles.filter(x=>x.id!==p.id), activeProfileId: s.activeProfileId === p.id ? undefined : s.activeProfileId }))}}>Supprimer</button></div></div>)}</div>{!state.profiles.length && <p className="muted">Aucun profil pour le moment.</p>}</div></section>}
 
     {tab === "journal" && <section className="grid">
-      <div className="card span-4"><h2>Ajouter</h2><button className="btn snap-cta" onClick={()=>setSnapOpen(true)}>📸 Snap mon repas (photo → calories)</button><button className="btn secondary snap-cta" onClick={()=>setBarcodeOpen(true)}>🏷️ Scanner un code-barres</button><label>Date</label><input type="date" value={date} onChange={e=>setDate(e.target.value)} /><label>Repas</label><select value={selectedMeal} onChange={e=>setSelectedMeal(e.target.value as MealType)}>{MEALS.map(m=><option key={m}>{m}</option>)}</select><label>Recherche</label><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="marque, produit ou code-barres..."/><p className="form-help">Recherche locale + Open Food Facts pour les produits de marque.</p>{offLoading && <p className="form-help">Recherche Open Food Facts en cours...</p>}{offError && <p className="form-help bad-text">{offError}</p>}<ProductResults foods={foodOptions.slice(0,10)} selectedId={selectedFood} onSelect={setSelectedFood}/>{!foodOptions.length && !offLoading && <p className="form-help bad-text">Aucun résultat : l'application n’ajoute rien par défaut.</p>}{selectedFoodObj && <ProductCard food={selectedFoodObj} qty={qty} macros={selectedPreview}/>}<QuantityPicker value={qty} onChange={setQty} food={selectedFoodObj}/><div className="macro-preview"><span>{selectedPreview.kcal} kcal</span><span>P {selectedPreview.protein}g</span><span>G {selectedPreview.carbs}g</span><span>L {selectedPreview.fat}g</span><span>Fibres {selectedPreview.fiber}g</span></div><MicroPanel title="Vitamines & minéraux de l'aliment" micros={selectedMicros}/><button className="btn" disabled={!selectedFood || !foodOptions.length || qty <= 0} onClick={addFoodLog}>Ajouter au journal</button></div>
+      <div className="card span-4"><h2>Ajouter</h2><button className="btn snap-cta" onClick={()=>setSnapOpen(true)}>📸 Snap mon repas (photo → calories)</button><button className="btn secondary snap-cta" onClick={()=>setBarcodeOpen(true)}>🏷️ Scanner un code-barres</button><label>Date</label><input type="date" value={date} onChange={e=>setDate(e.target.value)} /><label>Repas</label><select value={selectedMeal} onChange={e=>setSelectedMeal(e.target.value as MealType)}>{MEALS.map(m=><option key={m}>{m}</option>)}</select>{(favoriteFoods.length > 0 || recentFoods.length > 0) && <div className="quick-foods">{favoriteFoods.length > 0 && <><div className="quick-foods-title">★ Favoris</div><div className="quick-foods-row">{favoriteFoods.slice(0,8).map(f=><button type="button" key={f.id} className="quick-food-chip" onClick={()=>quickAddFood(f)} title="Ajouter au journal"><span>{foodIcon(f)}</span>{f.name}</button>)}</div></>}{recentFoods.length > 0 && <><div className="quick-foods-title">Récents</div><div className="quick-foods-row">{recentFoods.slice(0,8).map(f=><button type="button" key={f.id} className="quick-food-chip" onClick={()=>quickAddFood(f)} title="Ajouter au journal"><span>{foodIcon(f)}</span>{f.name}</button>)}</div></>}</div>}<label>Recherche</label><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="marque, produit ou code-barres..."/><p className="form-help">Recherche locale + Open Food Facts pour les produits de marque.</p>{offLoading && <p className="form-help">Recherche Open Food Facts en cours...</p>}{offError && <p className="form-help bad-text">{offError}</p>}<ProductResults foods={foodOptions.slice(0,10)} selectedId={selectedFood} onSelect={setSelectedFood}/>{!foodOptions.length && !offLoading && <p className="form-help bad-text">Aucun résultat : l'application n’ajoute rien par défaut.</p>}{selectedFoodObj && <ProductCard food={selectedFoodObj} qty={qty} macros={selectedPreview} isFavorite={(state.favorites||[]).includes(selectedFoodObj.id)} onToggleFavorite={()=>toggleFavorite(selectedFoodObj)}/>}<QuantityPicker value={qty} onChange={setQty} food={selectedFoodObj}/><div className="macro-preview"><span>{selectedPreview.kcal} kcal</span><span>P {selectedPreview.protein}g</span><span>G {selectedPreview.carbs}g</span><span>L {selectedPreview.fat}g</span><span>Fibres {selectedPreview.fiber}g</span></div><MicroPanel title="Vitamines & minéraux de l'aliment" micros={selectedMicros}/><button className="btn" disabled={!selectedFood || !foodOptions.length || qty <= 0} onClick={addFoodLog}>Ajouter au journal</button></div>
       <div className="card span-8"><h2>Journal du {date}</h2><div className="pillbar"><div className="kpi">Kcal <strong>{totals.kcal}</strong></div><div className="kpi">P <strong>{totals.protein}g</strong></div><div className="kpi">G <strong>{totals.carbs}g</strong></div><div className="kpi">L <strong>{totals.fat}g</strong></div></div><MicroPanel title="Micros cumulés du jour" micros={microsToday}/>{MEALS.map(m=><div className="meal" key={m} style={{marginTop:12}}><div className="meal-head">{m}</div><div className="meal-body list">{dayLogs.filter(l=>l.meal===m).map(l=>{const f=findFoodAny(l.foodId); const kcal = f ? macrosFromBaseGrams(f,l.qty).kcal : 0; return <div className="item space" key={l.id}><span>{f?.name} · {formatQuantity(f, l.qty, l.displayQty, l.displayUnit)} {f && <span className="muted">· {kcal} kcal</span>}</span><button className="btn danger" onClick={()=>removeLog(l.id)}>Retirer</button></div>})}</div></div>)}</div>
     </section>}
 
@@ -485,6 +523,15 @@ function sourceTone(food: Food) {
   if (food.reliability === "estime") return "estimated";
   return "manual";
 }
+function NutriScoreBadge({ grade }: { grade?: string }) {
+  if (!grade || !/^[a-e]$/i.test(grade)) return null;
+  return <span className={`nutri-badge nutri-${grade.toLowerCase()}`} title="Nutri-Score (qualité nutritionnelle, A = meilleur)">{grade.toUpperCase()}</span>;
+}
+function NovaBadge({ group }: { group?: number }) {
+  if (!group || ![1, 2, 3, 4].includes(group)) return null;
+  const labels: Record<number, string> = { 1: "Non transformé", 2: "Peu transformé", 3: "Transformé", 4: "Ultra-transformé" };
+  return <span className={`nova-badge nova-${group}`} title={`NOVA ${group} — ${labels[group]}`}>NOVA {group}</span>;
+}
 function foodIcon(food?: Food) {
   if (!food) return "🍽️";
   if (food.icon) return food.icon;
@@ -493,6 +540,49 @@ function foodIcon(food?: Food) {
   if (/creatine|créatine|pre workout|pré workout|booster/.test(n)) return "⚡";
   if (/vitamine|multivitamines|magnesium|magnésium/.test(n)) return "💊";
   if (/electrolytes|électrolytes/.test(n)) return "💧";
+  if (/oeuf|œuf/.test(n)) return "🥚";
+  if (/fromage|comté|comte|emmental|camembert|brie|chèvre|chevre|mozzarella|parmesan|cheddar|feta|raclette/.test(n)) return "🧀";
+  if (/avocat/.test(n)) return "🥑";
+  if (/tomate/.test(n)) return "🍅";
+  if (/brocoli|salade|épinard|epinard|chou|courgette|haricot vert|poivron|légume|legume/.test(n)) return "🥦";
+  if (/carotte/.test(n)) return "🥕";
+  if (/ma[iï]s/.test(n)) return "🌽";
+  if (/champignon/.test(n)) return "🍄";
+  if (/lentille|pois chiche|haricot|fève|feve|légumineuse|legumineuse/.test(n)) return "🫘";
+  if (/noix|amande|noisette|cajou|pistache|cacahu[èe]te/.test(n)) return "🥜";
+  if (/huile|olive/.test(n)) return "🫒";
+  if (/caf[ée]|expresso|espresso/.test(n)) return "☕";
+  if (/th[ée] |infusion/.test(n)) return "🍵";
+  if (/jus |smoothie/.test(n)) return "🧃";
+  if (/\beau\b|water/.test(n)) return "💧";
+  if (/vin|champagne/.test(n)) return "🍷";
+  if (/bi[èe]re/.test(n)) return "🍺";
+  if (/chocolat/.test(n)) return "🍫";
+  if (/glace|sorbet|crème glacée|creme glacee/.test(n)) return "🍨";
+  if (/g[âa]teau|cake|tarte|p[âa]tisserie/.test(n)) return "🍰";
+  if (/bonbon|confiserie/.test(n)) return "🍬";
+  if (/miel/.test(n)) return "🍯";
+  if (/pizza/.test(n)) return "🍕";
+  if (/p[âa]tes|spaghetti|penne|tagliatelle|lasagne|raviol/.test(n)) return "🍝";
+  if (/burger|hamburger/.test(n)) return "🍔";
+  if (/sandwich|wrap|kebab|panini/.test(n)) return "🥪";
+  if (/riz|risotto/.test(n)) return "🍚";
+  if (/frite|pomme de terre|patate/.test(n)) return "🍟";
+  if (/sushi|maki|sashimi/.test(n)) return "🍣";
+  if (/crevette|gambas|crabe|homard|langoustine/.test(n)) return "🦐";
+  if (/banane/.test(n)) return "🍌";
+  if (/pomme(?! de terre)/.test(n)) return "🍎";
+  if (/orange|cl[ée]mentine|mandarine/.test(n)) return "🍊";
+  if (/kiwi/.test(n)) return "🥝";
+  if (/fraise/.test(n)) return "🍓";
+  if (/raisin/.test(n)) return "🍇";
+  if (/past[èe]que/.test(n)) return "🍉";
+  if (/ananas/.test(n)) return "🍍";
+  if (/mangue/.test(n)) return "🥭";
+  if (/cerise/.test(n)) return "🍒";
+  if (/p[êe]che|abricot|nectarine/.test(n)) return "🍑";
+  if (/citron|lime/.test(n)) return "🍋";
+  if (/poire/.test(n)) return "🍐";
   if (/oreo|biscuit|cookie|sablé|sable|madeleine|gâteau|gateau/.test(n)) return "🍪";
   if (/tender|poulet|dinde|viande|steak/.test(n)) return "🍗";
   if (/yaourt|yogourt|skyr|fromage blanc|lait/.test(n)) return "🥛";
@@ -506,10 +596,10 @@ function ProductResults({ foods, selectedId, onSelect }: { foods: Food[]; select
   if (!foods.length) return null;
   return <div className="product-results"><div className="result-title">Meilleurs résultats</div>{foods.map(f => <button type="button" key={f.id} className={`product-choice ${selectedId === f.id ? "active" : ""}`} onClick={() => onSelect(f.id)}><span className="mini-food-icon">{f.imageUrl ? <img src={f.imageUrl} alt=""/> : foodIcon(f)}</span><span className="product-choice-text"><strong>{f.name}</strong><small>{f.brand ? `${f.brand} · ` : ""}{f.macros.kcal} kcal/100g · {f.barcode ? `CB ${f.barcode} · ` : ""}{isPieceInput(f) ? `1 ${f.servingLabel || "portion"} ≈ ${estimateServingGrams(f)} g · ` : ""}{sourceLabel(f)}</small></span><span className={`source-badge ${sourceTone(f)}`}>{sourceLabel(f)}</span></button>)}</div>;
 }
-function ProductCard({ food, qty, macros }: { food: Food; qty: number; macros: { kcal: number; protein: number; carbs: number; fat: number; fiber: number; grams: number } }) {
+function ProductCard({ food, qty, macros, isFavorite, onToggleFavorite }: { food: Food; qty: number; macros: { kcal: number; protein: number; carbs: number; fat: number; fiber: number; grams: number }; isFavorite?: boolean; onToggleFavorite?: () => void }) {
   const portion = isPieceInput(food) ? `1 ${food.servingLabel || "pièce"} ≈ ${estimateServingGrams(food)} g` : "Valeurs pour 100 g/ml";
   const selected = isPieceInput(food) ? `${qty} ${qty > 1 ? `${food.servingLabel || "pièce"}s` : (food.servingLabel || "pièce")} ≈ ${macros.grams} g` : `${qty} ${food.unit}`;
-  return <div className="product-card"><div className="product-image" aria-hidden="true">{food.imageUrl ? <img src={food.imageUrl} alt=""/> : <span>{foodIcon(food)}</span>}</div><div className="product-info"><div className="product-topline"><span className={`source-badge ${sourceTone(food)}`}>{sourceLabel(food)}</span><span className={`source-badge ${food.reliability === "estime" ? "estimated" : "manual"}`}>{food.reliability}</span></div><h3>{food.name}</h3><p className="muted">{food.brand ? `Marque : ${food.brand} · ` : ""}{portion}{food.barcode ? ` · Code-barres : ${food.barcode}` : ""}</p><p className="product-selected">Sélection : <strong>{selected}</strong></p>{food.sourceRef && <p className="product-source-note">{food.sourceRef}</p>}<div className="product-macros"><span>{macros.kcal} kcal</span><span>P {macros.protein}g</span><span>G {macros.carbs}g</span><span>L {macros.fat}g</span></div></div></div>;
+  return <div className="product-card"><div className="product-image" aria-hidden="true">{food.imageUrl ? <img src={food.imageUrl} alt=""/> : <span>{foodIcon(food)}</span>}</div><div className="product-info"><div className="product-topline"><span className={`source-badge ${sourceTone(food)}`}>{sourceLabel(food)}</span><span className={`source-badge ${food.reliability === "estime" ? "estimated" : "manual"}`}>{food.reliability}</span><NutriScoreBadge grade={food.nutriScore}/><NovaBadge group={food.novaGroup}/>{onToggleFavorite && <button type="button" className={`fav-btn ${isFavorite ? "on" : ""}`} onClick={onToggleFavorite} aria-label={isFavorite ? "Retirer des favoris" : "Ajouter aux favoris"} title={isFavorite ? "Retirer des favoris" : "Ajouter aux favoris"}>{isFavorite ? "★" : "☆"}</button>}</div><h3>{food.name}</h3><p className="muted">{food.brand ? `Marque : ${food.brand} · ` : ""}{portion}{food.barcode ? ` · Code-barres : ${food.barcode}` : ""}</p><p className="product-selected">Sélection : <strong>{selected}</strong></p>{food.ingredientsText && <p className="ingredients-note"><strong>Ingrédients :</strong> {food.ingredientsText.length > 240 ? `${food.ingredientsText.slice(0, 240)}…` : food.ingredientsText}</p>}{food.sourceRef && <p className="product-source-note">{food.sourceRef}</p>}<div className="product-macros"><span>{macros.kcal} kcal</span><span>P {macros.protein}g</span><span>G {macros.carbs}g</span><span>L {macros.fat}g</span></div></div></div>;
 }
 
 function MicroInline({ food }: { food: Food }) {

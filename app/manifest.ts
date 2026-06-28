@@ -2,7 +2,7 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Macrolens — photo vers calories",
+    name: "Macrolens",
     short_name: "Macrolens",
     description: "Prends ton repas en photo, Macrolens estime les calories et les macros.",
     start_url: "/",

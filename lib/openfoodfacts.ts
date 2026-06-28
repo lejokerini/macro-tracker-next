@@ -24,6 +24,8 @@ export type OpenFoodFactsProduct = {
   selected_images?: Record<string, unknown>;
   nova_group?: number;
   nutriscore_grade?: string;
+  ingredients_text?: string;
+  ingredients_text_fr?: string;
 };
 
 const OFF_FIELDS = [
@@ -49,6 +51,8 @@ const OFF_FIELDS = [
   "selected_images",
   "nova_group",
   "nutriscore_grade",
+  "ingredients_text",
+  "ingredients_text_fr",
 ].join(",");
 
 const COMMON_PRODUCT_CORRECTIONS: Record<string, string> = {
@@ -280,5 +284,8 @@ export function openFoodFactsProductToFood(product: OpenFoodFactsProduct): Food 
     imageUrl: imageFor(product),
     servingLabel: gramsPerServing ? "portion" : undefined,
     servingGrams: gramsPerServing,
+    nutriScore: /^[a-e]$/i.test(String(product.nutriscore_grade || "")) ? String(product.nutriscore_grade).toLowerCase() : undefined,
+    novaGroup: [1, 2, 3, 4].includes(Number(product.nova_group)) ? Number(product.nova_group) : undefined,
+    ingredientsText: (product.ingredients_text_fr || product.ingredients_text || "").trim() || undefined,
   } satisfies Food;
 }
