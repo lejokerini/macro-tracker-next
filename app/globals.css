@@ -271,3 +271,22 @@ button,input,select,textarea{font:inherit}
   .sheet-overlay{display:flex;position:fixed;inset:0;z-index:60;background:rgba(20,32,20,.5);backdrop-filter:blur(4px);align-items:flex-end}
   .sheet{width:100%;background:var(--surface-solid);border-radius:24px 24px 0 0;padding:16px 16px calc(20px + env(safe-area-inset-bottom));box-shadow:0 -20px 60px rgba(0,0,0,.3);max-height:82vh;overflow:auto}
 }
+
+/* Graphiques du dashboard (anneaux + camembert macros) */
+:root{--ring-track:#e9e3d6}
+:root[data-theme="dark"]{--ring-track:#2a352b}
+.chart-card{display:flex;flex-direction:column;align-items:center;text-align:center}
+.chart-card h3{margin:0 0 8px}
+.ring{width:148px;height:148px;max-width:74%}
+.ring-num{font-size:25px;font-weight:950;fill:var(--text)}
+.ring-sub{font-size:12px;font-weight:800;fill:var(--muted)}
+.chart-foot{margin-top:8px;font-size:12px;font-weight:900;color:var(--primary)}
+.macro-legend{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:10px}
+.macro-legend span{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:900;color:var(--text)}
+.legend-dot{width:10px;height:10px;border-radius:50%;display:inline-block;flex:0 0 auto}
+.water-btns{justify-content:center;gap:6px;margin-top:10px}
+.water-btns .btn{padding:8px 10px;font-size:12px}
+
+/* Polish barre du bas : pastille sur l'onglet actif */
+.bn-ico{padding:4px 14px;border-radius:999px;transition:background .16s,transform .16s}
+.bn-item.active .bn-ico{background:var(--primary-soft);transform:translateY(-1px)}

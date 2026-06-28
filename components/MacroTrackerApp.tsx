@@ -165,6 +165,7 @@ export default function MacroTrackerApp() {
 
   const activeProfile = state.profiles.find(p => p.id === state.activeProfileId);
   const targets = activeProfile ? calculateTargets(activeProfile) : null;
+  const waterGoal = activeProfile ? Math.max(1500, Math.round(activeProfile.weightKg * 35)) : 2000;
   const categories = useMemo(() => ["all", ...Array.from(new Set(foods.map(f => f.category))).sort((a,b)=>a.localeCompare(b,"fr"))], []);
 
   useEffect(() => {
@@ -440,12 +441,10 @@ export default function MacroTrackerApp() {
 
     {tab === "dashboard" && <section className="grid">
       {!activeProfile && <div className="span-12 notice">Commence par créer un profil. L'app ne crée aucun profil par défaut.</div>}
-      <div className="card span-3 kpi"><span className="muted">Calories aujourd'hui</span><br/><strong>{totals.kcal}</strong>{targets && <> / {targets.kcal}</>}<div className="progress"><div style={{width:`${targets ? Math.min(100, totals.kcal/targets.kcal*100) : 0}%`}} /></div></div>
-      <div className="card span-3 kpi"><span className="muted">Protéines</span><br/><strong>{totals.protein}g</strong>{targets && <> / {targets.protein}g</>}</div>
-      <div className="card span-3 kpi"><span className="muted">Programme</span><br/><strong>{programScore?.score ?? 0}/100</strong><br/><span className="muted">score qualité</span></div>
-      <div className="card span-3 kpi"><span className="muted">Courses</span><br/><strong>{shopping.reduce((s,x)=>s+x.price,0).toFixed(2)} €</strong><br/><span className="muted">estimé après placard</span></div>
+      <div className="card span-4 chart-card"><h3>Calories du jour</h3><ProgressRing value={totals.kcal} max={targets?.kcal || 0} color="var(--primary-2)" top={`${totals.kcal}`} bottom={targets ? `/ ${targets.kcal}` : "kcal"} /><span className="chart-foot">{targets ? `${Math.max(0, targets.kcal - totals.kcal)} kcal restantes` : "Crée un profil pour ta cible"}</span></div>
+      <div className="card span-4 chart-card"><h3>Macros</h3><MacroPie protein={totals.protein} carbs={totals.carbs} fat={totals.fat} /><div className="macro-legend"><span><i className="legend-dot" style={{background:"#2f6b2f"}} />P {totals.protein}g</span><span><i className="legend-dot" style={{background:"#f3a52c"}} />G {totals.carbs}g</span><span><i className="legend-dot" style={{background:"#8a6bd1"}} />L {totals.fat}g</span></div></div>
+      <div className="card span-4 chart-card"><h3>💧 Hydratation</h3><ProgressRing value={(state.water||{})[date]||0} max={waterGoal} color="#3b9bd6" top={`${(state.water||{})[date]||0}`} bottom={`/ ${waterGoal} ml`} /><div className="row water-btns"><button className="btn secondary" onClick={()=>addWater(100)}>+10cl</button><button className="btn secondary" onClick={()=>addWater(150)}>+15cl</button><button className="btn secondary" onClick={()=>addWater(250)}>+25cl</button><button className="btn secondary" onClick={()=>addWater(500)}>+50cl</button><button className="btn secondary" onClick={()=>addWater(-100)} disabled={!((state.water||{})[date])}>−10cl</button></div></div>
       <div className="card span-12"><h2>Actions rapides</h2><div className="row"><button className="btn" onClick={()=>setSnapOpen(true)}>📸 Snap mon repas</button><button className="btn" onClick={()=>setBarcodeOpen(true)}>🏷️ Scanner un code-barres</button><button className="btn" disabled={!activeProfile} onClick={generate}>Générer 7 jours</button><button className="btn secondary" onClick={()=>setTab("journal")}>Ajouter un aliment</button><button className="btn secondary" onClick={()=>setTab("recettes")}>Cuisiner une recette</button><button className="btn secondary" onClick={()=>setTab("courses")}>Voir courses</button></div></div>
-      <div className="card span-12"><div className="space"><h2>💧 Hydratation</h2><span className="muted">{(state.water||{})[date]||0} / {activeProfile ? Math.max(1500, Math.round(activeProfile.weightKg*35)) : 2000} ml aujourd'hui</span></div><div className="progress water-progress"><div style={{width:`${Math.min(100, (((state.water||{})[date]||0) / (activeProfile ? Math.max(1500, Math.round(activeProfile.weightKg*35)) : 2000))*100)}%`}} /></div><div className="row" style={{marginTop:12}}><button className="btn secondary" onClick={()=>addWater(100)}>+ 10 cl</button><button className="btn secondary" onClick={()=>addWater(150)}>+ 15 cl</button><button className="btn secondary" onClick={()=>addWater(250)}>+ Verre · 25 cl</button><button className="btn secondary" onClick={()=>addWater(500)}>+ Bouteille · 50 cl</button><button className="btn secondary" onClick={()=>addWater(-100)} disabled={!((state.water||{})[date])}>− 10 cl</button></div></div>
     </section>}
 
     {tab === "profil" && <section className="grid">
@@ -635,6 +634,44 @@ function MicroPanel({ title, micros }: { title: string; micros: Partial<Record<M
     if (!keys.length) return null;
     return <div key={group} className="micro-group"><span className="micro-group-title">{group}</span><div className="micro-grid">{keys.map(k => <span key={k}>{MICRO_LABELS[k].label}<strong>{cleanNumber(Number(micros[k] || 0))}{MICRO_LABELS[k].unit}</strong></span>)}</div></div>;
   })}</div>;
+}
+function ProgressRing({ value, max, color, top, bottom }: { value: number; max: number; color: string; top: string; bottom: string }) {
+  const r = 52;
+  const C = 2 * Math.PI * r;
+  const pct = max > 0 ? Math.min(1, value / max) : 0;
+  const offset = C * (1 - pct);
+  return (
+    <svg viewBox="0 0 128 128" className="ring" role="img" aria-label={`${top} ${bottom}`}>
+      <circle cx="64" cy="64" r={r} fill="none" stroke="var(--ring-track)" strokeWidth="12" />
+      <circle cx="64" cy="64" r={r} fill="none" stroke={color} strokeWidth="12" strokeLinecap="round" strokeDasharray={C} strokeDashoffset={offset} transform="rotate(-90 64 64)" />
+      <text x="64" y="62" textAnchor="middle" className="ring-num">{top}</text>
+      <text x="64" y="82" textAnchor="middle" className="ring-sub">{bottom}</text>
+    </svg>
+  );
+}
+function MacroPie({ protein, carbs, fat }: { protein: number; carbs: number; fat: number }) {
+  const r = 52;
+  const C = 2 * Math.PI * r;
+  const pK = protein * 4, cK = carbs * 4, fK = fat * 9;
+  const tot = pK + cK + fK;
+  const shares = tot > 0 ? [pK / tot, cK / tot, fK / tot] : [0, 0, 0];
+  const colors = ["#2f6b2f", "#f3a52c", "#8a6bd1"];
+  let acc = 0;
+  const arcs = shares.map((s) => {
+    const len = s * C;
+    const off = -acc * C;
+    acc += s;
+    return { dash: `${len} ${C - len}`, off };
+  });
+  return (
+    <svg viewBox="0 0 128 128" className="ring" role="img" aria-label="Répartition des macros">
+      <circle cx="64" cy="64" r={r} fill="none" stroke="var(--ring-track)" strokeWidth="16" />
+      {tot > 0 && arcs.map((a, i) => (
+        <circle key={i} cx="64" cy="64" r={r} fill="none" stroke={colors[i]} strokeWidth="16" strokeDasharray={a.dash} strokeDashoffset={a.off} transform="rotate(-90 64 64)" />
+      ))}
+      <text x="64" y="68" textAnchor="middle" className="ring-sub">{tot > 0 ? "P · G · L" : "—"}</text>
+    </svg>
+  );
 }
 function WeightChart({ weights }: { weights: WeightLog[] }) {
   const data = [...weights].sort((a,b)=>a.date.localeCompare(b.date)).slice(-30);
