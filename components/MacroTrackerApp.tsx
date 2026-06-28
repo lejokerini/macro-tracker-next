@@ -385,7 +385,7 @@ export default function MacroTrackerApp() {
   return <main className="app">
     <header className="header hero">
       <div className="brand">
-        <h1>Macro<span>Tracker</span> Pro</h1>
+        <h1>Cal<span>Snap</span></h1>
         <div className="hero-badges">
           <span>{CIQUAL_FOOD_COUNT.toLocaleString("fr-FR")} aliments Ciqual</span>
           <span>{seedRecipes.length} recettes</span>
