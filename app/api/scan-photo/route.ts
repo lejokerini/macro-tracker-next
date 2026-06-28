@@ -5,7 +5,10 @@ import type { ScanItem } from "@/lib/calsnap";
 export const runtime = "nodejs";
 export const maxDuration = 30;
 
-const MODEL = "claude-sonnet-4-6";
+const ANTHROPIC_MODEL = "claude-sonnet-4-6";
+// gemini-2.0-flash a été arrêté le 01/06/2026 : on cible un modèle Flash gratuit récent.
+const GEMINI_MODEL = process.env.GEMINI_MODEL?.trim() || "gemini-2.5-flash";
+
 const ALLOWED_MEDIA = ["image/jpeg", "image/png", "image/webp", "image/gif"] as const;
 type AllowedMedia = (typeof ALLOWED_MEDIA)[number];
 
@@ -67,11 +70,61 @@ function sanitizeItems(parsed: unknown): ScanItem[] {
     .slice(0, 12);
 }
 
+// --- Moteur gratuit : Google Gemini ---
+async function analyzeWithGemini(base64: string, mediaType: AllowedMedia, apiKey: string): Promise<string> {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${encodeURIComponent(apiKey)}`;
+  const body = {
+    contents: [
+      {
+        parts: [
+          { text: PROMPT },
+          { inline_data: { mime_type: mediaType, data: base64 } },
+        ],
+      },
+    ],
+    generationConfig: { temperature: 0.2, maxOutputTokens: 1500, responseMimeType: "application/json" },
+  };
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const detail = await res.text().catch(() => "");
+    throw new Error(`Gemini HTTP ${res.status} ${detail.slice(0, 200)}`);
+  }
+  const data = (await res.json()) as {
+    candidates?: { content?: { parts?: { text?: string }[] } }[];
+  };
+  return (data.candidates?.[0]?.content?.parts || []).map((p) => p.text || "").join("");
+}
+
+// --- Moteur payant : Anthropic Claude ---
+async function analyzeWithAnthropic(base64: string, mediaType: AllowedMedia, apiKey: string): Promise<string> {
+  const client = new Anthropic({ apiKey });
+  const message = await client.messages.create({
+    model: ANTHROPIC_MODEL,
+    max_tokens: 1500,
+    messages: [
+      {
+        role: "user",
+        content: [
+          { type: "image", source: { type: "base64", media_type: mediaType, data: base64 } },
+          { type: "text", text: PROMPT },
+        ],
+      },
+    ],
+  });
+  const textBlock = message.content.find((b) => b.type === "text");
+  return textBlock && textBlock.type === "text" ? textBlock.text : "";
+}
+
 export async function POST(req: Request) {
-  const apiKey = process.env.ANTHROPIC_API_KEY?.trim();
-  if (!apiKey) {
+  const geminiKey = process.env.GEMINI_API_KEY?.trim();
+  const anthropicKey = process.env.ANTHROPIC_API_KEY?.trim();
+  if (!geminiKey && !anthropicKey) {
     return NextResponse.json(
-      { error: "Clé ANTHROPIC_API_KEY manquante côté serveur (à ajouter dans Vercel)." },
+      { error: "Aucune clé d'analyse configurée. Ajoute GEMINI_API_KEY (gratuit) ou ANTHROPIC_API_KEY dans Vercel." },
       { status: 500 },
     );
   }
@@ -97,23 +150,10 @@ export async function POST(req: Request) {
   }
 
   try {
-    const client = new Anthropic({ apiKey });
-    const message = await client.messages.create({
-      model: MODEL,
-      max_tokens: 1500,
-      messages: [
-        {
-          role: "user",
-          content: [
-            { type: "image", source: { type: "base64", media_type: mediaType, data: base64 } },
-            { type: "text", text: PROMPT },
-          ],
-        },
-      ],
-    });
-
-    const textBlock = message.content.find((b) => b.type === "text");
-    const text = textBlock && textBlock.type === "text" ? textBlock.text : "";
+    // On privilégie Gemini (gratuit) s'il est configuré, sinon Anthropic.
+    const text = geminiKey
+      ? await analyzeWithGemini(base64, mediaType, geminiKey)
+      : await analyzeWithAnthropic(base64, mediaType, anthropicKey!);
     const items = sanitizeItems(extractJson(text));
     return NextResponse.json({ items });
   } catch (error) {

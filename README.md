@@ -100,10 +100,18 @@ un repas en photo et l'IA estime les calories et les macros, puis on ajoute au j
 
 ### Configuration requise
 
-Ajouter la clé Anthropic **côté serveur** (jamais `NEXT_PUBLIC_`) :
+La reconnaissance photo a besoin d'**au moins une clé** (côté serveur, jamais `NEXT_PUBLIC_`).
+Si les deux sont présentes, Gemini (gratuit) est prioritaire.
 
-- En local : `ANTHROPIC_API_KEY=...` dans `.env.local`
-- Sur Vercel : Project Settings → Environment Variables → `ANTHROPIC_API_KEY`
+**Option gratuite (recommandée) — Google Gemini :**
+
+- Crée une clé sur https://aistudio.google.com/app/apikey (gratuit, ~1500 req/jour).
+- En local : `GEMINI_API_KEY=...` dans `.env.local`
+- Sur Vercel : Settings → Environment Variables → `GEMINI_API_KEY`
+
+**Option payante — Anthropic Claude :**
+
+- `ANTHROPIC_API_KEY=...` (local) / Vercel → Environment Variables → `ANTHROPIC_API_KEY`
 
 Puis installer la nouvelle dépendance et lancer :
 
