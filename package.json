@@ -11,7 +11,10 @@
     "import:ciqual:xml": "node scripts/import-ciqual-xml.cjs"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "latest",
     "@supabase/supabase-js": "latest",
+    "@zxing/browser": "latest",
+    "@zxing/library": "latest",
     "next": "latest",
     "react": "latest",
     "react-dom": "latest",

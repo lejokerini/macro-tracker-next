@@ -8,6 +8,9 @@ import { buildShoppingList, generateProgram, scoreProgram } from "@/lib/planner"
 import { seedRecipes } from "@/data/recipes";
 import { createBrowserSupabaseClient } from "@/lib/supabase";
 import { searchOpenFoodFacts } from "@/lib/openfoodfacts";
+import SnapModal from "@/components/SnapModal";
+import BarcodeScanModal from "@/components/BarcodeScanModal";
+import { buildScannedFood, type EditableScanItem } from "@/lib/calsnap";
 import { CIQUAL_FOOD_COUNT } from "@/data/ciqual-foods.generated";
 import type { DietType, Food, MealLogItem, MealType, PantryItem, Profile, ProgramMeal, Recipe, Store, WeightLog } from "@/lib/types";
 
@@ -123,6 +126,8 @@ export default function MacroTrackerApp() {
   const [offResults, setOffResults] = useState<Food[]>([]);
   const [offLoading, setOffLoading] = useState(false);
   const [offError, setOffError] = useState("");
+  const [snapOpen, setSnapOpen] = useState(false);
+  const [barcodeOpen, setBarcodeOpen] = useState(false);
   const supabase = useMemo(() => createBrowserSupabaseClient(), []);
   const [session, setSession] = useState<Session | null>(null);
   const [authEmail, setAuthEmail] = useState("");
@@ -277,6 +282,27 @@ export default function MacroTrackerApp() {
     setState(s => ({ ...s, logs: [...s.logs, ...items] }));
     alert(`Recette ajoutée au journal : ${recipe.title}`);
   }
+  function addScannedItems(items: EditableScanItem[], mealForItems: MealType) {
+    if (!items.length) return;
+    const newFoods: Food[] = [];
+    const newLogs: MealLogItem[] = [];
+    items.forEach(it => {
+      const food = buildScannedFood(it);
+      newFoods.push(food);
+      newLogs.push({ id: uid("log"), foodId: food.id, qty: it.grams, displayQty: it.grams, displayUnit: "g", meal: mealForItems, date });
+    });
+    setState(s => ({ ...s, offFoods: [...(s.offFoods || []), ...newFoods], logs: [...s.logs, ...newLogs] }));
+    setTab("journal");
+  }
+  function addBarcodeFood(food: Food, qtyInput: number, mealForItem: MealType) {
+    const baseQty = quantityToNutritionGrams(food, qtyInput);
+    setState(s => ({
+      ...s,
+      offFoods: (s.offFoods || []).some(f => f.id === food.id) ? (s.offFoods || []) : [...(s.offFoods || []), food],
+      logs: [...s.logs, { id: uid("log"), foodId: food.id, qty: baseQty, displayQty: qtyInput, displayUnit: isPieceInput(food) ? "piece" : food.unit, meal: mealForItem, date }],
+    }));
+    setTab("journal");
+  }
   function removeLog(id: string) { setState(s => ({ ...s, logs: s.logs.filter(x=>x.id!==id) })); }
   function generate() { if(!activeProfile) return; setState(s => ({ ...s, program: generateProgram(activeProfile, s.recipes, 7) })); setTab("programme"); }
   function addPantry(foodId: string, q: number) {
@@ -370,7 +396,7 @@ export default function MacroTrackerApp() {
       <div className="card span-3 kpi"><span className="muted">Protéines</span><br/><strong>{totals.protein}g</strong>{targets && <> / {targets.protein}g</>}</div>
       <div className="card span-3 kpi"><span className="muted">Programme</span><br/><strong>{programScore?.score ?? 0}/100</strong><br/><span className="muted">score qualité</span></div>
       <div className="card span-3 kpi"><span className="muted">Courses</span><br/><strong>{shopping.reduce((s,x)=>s+x.price,0).toFixed(2)} €</strong><br/><span className="muted">estimé après placard</span></div>
-      <div className="card span-12"><h2>Actions rapides</h2><div className="row"><button className="btn" disabled={!activeProfile} onClick={generate}>Générer 7 jours</button><button className="btn secondary" onClick={()=>setTab("journal")}>Ajouter un aliment</button><button className="btn secondary" onClick={()=>setTab("recettes")}>Cuisiner une recette</button><button className="btn secondary" onClick={()=>setTab("courses")}>Voir courses</button></div></div>
+      <div className="card span-12"><h2>Actions rapides</h2><div className="row"><button className="btn" onClick={()=>setSnapOpen(true)}>📸 Snap mon repas</button><button className="btn" onClick={()=>setBarcodeOpen(true)}>🏷️ Scanner un code-barres</button><button className="btn" disabled={!activeProfile} onClick={generate}>Générer 7 jours</button><button className="btn secondary" onClick={()=>setTab("journal")}>Ajouter un aliment</button><button className="btn secondary" onClick={()=>setTab("recettes")}>Cuisiner une recette</button><button className="btn secondary" onClick={()=>setTab("courses")}>Voir courses</button></div></div>
     </section>}
 
     {tab === "profil" && <section className="grid">
@@ -390,7 +416,7 @@ export default function MacroTrackerApp() {
     </form></div><div className="card span-4"><h3>Profils existants</h3><div className="list">{state.profiles.map(p=><div className="item" key={p.id}><div className="space"><strong>{p.firstName} {p.lastName}</strong><button className="btn secondary" onClick={()=>setState(s=>({...s,activeProfileId:p.id}))}>Activer</button></div><span className="muted">{p.goal} · {p.diet}</span><div className="row" style={{marginTop:8}}><button className="btn danger" onClick={()=>{if(confirm("Supprimer ce profil ?")) setState(s=>({ ...s, profiles: s.profiles.filter(x=>x.id!==p.id), activeProfileId: s.activeProfileId === p.id ? undefined : s.activeProfileId }))}}>Supprimer</button></div></div>)}</div>{!state.profiles.length && <p className="muted">Aucun profil pour le moment.</p>}</div></section>}
 
     {tab === "journal" && <section className="grid">
-      <div className="card span-4"><h2>Ajouter</h2><label>Date</label><input type="date" value={date} onChange={e=>setDate(e.target.value)} /><label>Repas</label><select value={selectedMeal} onChange={e=>setSelectedMeal(e.target.value as MealType)}>{MEALS.map(m=><option key={m}>{m}</option>)}</select><label>Recherche</label><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="marque, produit ou code-barres..."/><p className="form-help">Recherche locale + Open Food Facts pour les produits de marque.</p>{offLoading && <p className="form-help">Recherche Open Food Facts en cours...</p>}{offError && <p className="form-help bad-text">{offError}</p>}<ProductResults foods={foodOptions.slice(0,10)} selectedId={selectedFood} onSelect={setSelectedFood}/>{!foodOptions.length && !offLoading && <p className="form-help bad-text">Aucun résultat : l'application n’ajoute rien par défaut.</p>}{selectedFoodObj && <ProductCard food={selectedFoodObj} qty={qty} macros={selectedPreview}/>}<QuantityPicker value={qty} onChange={setQty} food={selectedFoodObj}/><div className="macro-preview"><span>{selectedPreview.kcal} kcal</span><span>P {selectedPreview.protein}g</span><span>G {selectedPreview.carbs}g</span><span>L {selectedPreview.fat}g</span><span>Fibres {selectedPreview.fiber}g</span></div><MicroPanel title="Vitamines & minéraux de l'aliment" micros={selectedMicros}/><button className="btn" disabled={!selectedFood || !foodOptions.length || qty <= 0} onClick={addFoodLog}>Ajouter au journal</button></div>
+      <div className="card span-4"><h2>Ajouter</h2><button className="btn snap-cta" onClick={()=>setSnapOpen(true)}>📸 Snap mon repas (photo → calories)</button><button className="btn secondary snap-cta" onClick={()=>setBarcodeOpen(true)}>🏷️ Scanner un code-barres</button><label>Date</label><input type="date" value={date} onChange={e=>setDate(e.target.value)} /><label>Repas</label><select value={selectedMeal} onChange={e=>setSelectedMeal(e.target.value as MealType)}>{MEALS.map(m=><option key={m}>{m}</option>)}</select><label>Recherche</label><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="marque, produit ou code-barres..."/><p className="form-help">Recherche locale + Open Food Facts pour les produits de marque.</p>{offLoading && <p className="form-help">Recherche Open Food Facts en cours...</p>}{offError && <p className="form-help bad-text">{offError}</p>}<ProductResults foods={foodOptions.slice(0,10)} selectedId={selectedFood} onSelect={setSelectedFood}/>{!foodOptions.length && !offLoading && <p className="form-help bad-text">Aucun résultat : l'application n’ajoute rien par défaut.</p>}{selectedFoodObj && <ProductCard food={selectedFoodObj} qty={qty} macros={selectedPreview}/>}<QuantityPicker value={qty} onChange={setQty} food={selectedFoodObj}/><div className="macro-preview"><span>{selectedPreview.kcal} kcal</span><span>P {selectedPreview.protein}g</span><span>G {selectedPreview.carbs}g</span><span>L {selectedPreview.fat}g</span><span>Fibres {selectedPreview.fiber}g</span></div><MicroPanel title="Vitamines & minéraux de l'aliment" micros={selectedMicros}/><button className="btn" disabled={!selectedFood || !foodOptions.length || qty <= 0} onClick={addFoodLog}>Ajouter au journal</button></div>
       <div className="card span-8"><h2>Journal du {date}</h2><div className="pillbar"><div className="kpi">Kcal <strong>{totals.kcal}</strong></div><div className="kpi">P <strong>{totals.protein}g</strong></div><div className="kpi">G <strong>{totals.carbs}g</strong></div><div className="kpi">L <strong>{totals.fat}g</strong></div></div><MicroPanel title="Micros cumulés du jour" micros={microsToday}/>{MEALS.map(m=><div className="meal" key={m} style={{marginTop:12}}><div className="meal-head">{m}</div><div className="meal-body list">{dayLogs.filter(l=>l.meal===m).map(l=>{const f=findFoodAny(l.foodId); const kcal = f ? macrosFromBaseGrams(f,l.qty).kcal : 0; return <div className="item space" key={l.id}><span>{f?.name} · {formatQuantity(f, l.qty, l.displayQty, l.displayUnit)} {f && <span className="muted">· {kcal} kcal</span>}</span><button className="btn danger" onClick={()=>removeLog(l.id)}>Retirer</button></div>})}</div></div>)}</div>
     </section>}
 
@@ -414,6 +440,9 @@ export default function MacroTrackerApp() {
       <div className="card span-6"><h2>Sauvegarde locale</h2><p className="muted">Exporte ou importe une sauvegarde JSON complète de ton espace personnel.</p><button className="btn" onClick={exportJson}>Exporter JSON complet</button><label>Importer sauvegarde</label><input type="file" accept="application/json" onChange={e=>importJson(e.target.files?.[0] || null)}/></div>
       <div className="card span-12"><h2>Réinitialisation</h2><div className="row"><button className="btn danger" onClick={()=>setState(s=>({...s,logs:[]}))}>Journal</button><button className="btn danger" onClick={()=>setState(s=>({...s,weights:[]}))}>Poids</button><button className="btn danger" onClick={()=>setState(s=>({...s,pantry:[]}))}>Placard</button><button className="btn danger" onClick={()=>{if(confirm("Tout effacer ?")) setState(emptyState)}}>Tout</button></div></div>
     </section>}
+
+    <SnapModal open={snapOpen} onClose={()=>setSnapOpen(false)} onConfirm={addScannedItems} defaultMeal={selectedMeal} date={date} />
+    <BarcodeScanModal open={barcodeOpen} onClose={()=>setBarcodeOpen(false)} onConfirm={addBarcodeFood} defaultMeal={selectedMeal} date={date} />
   </main>;
 }
 

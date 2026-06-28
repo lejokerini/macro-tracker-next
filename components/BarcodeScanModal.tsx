@@ -1,0 +1,269 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import { BrowserMultiFormatReader, type IScannerControls } from "@zxing/browser";
+import type { Food, MealType } from "@/lib/types";
+import { fetchOpenFoodFactsByBarcode } from "@/lib/openfoodfacts";
+import { estimateServingGrams, isPieceInput, quantityToNutritionGrams, unitLabel } from "@/lib/food-engine";
+
+const MEALS: MealType[] = ["Petit-déjeuner", "Déjeuner", "Dîner", "Collation"];
+
+type Phase = "scan" | "fetching" | "found" | "notfound" | "error";
+
+function scaledMacros(food: Food, qty: number) {
+  const grams = quantityToNutritionGrams(food, qty);
+  const f = grams / 100;
+  return {
+    grams: Math.round(grams),
+    kcal: Math.round(food.macros.kcal * f),
+    protein: Math.round(food.macros.protein * f * 10) / 10,
+    carbs: Math.round(food.macros.carbs * f * 10) / 10,
+    fat: Math.round(food.macros.fat * f * 10) / 10,
+  };
+}
+
+export default function BarcodeScanModal({
+  open,
+  onClose,
+  onConfirm,
+  defaultMeal,
+  date,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onConfirm: (food: Food, qty: number, meal: MealType) => void;
+  defaultMeal: MealType;
+  date: string;
+}) {
+  const [phase, setPhase] = useState<Phase>("scan");
+  const [product, setProduct] = useState<Food | null>(null);
+  const [qty, setQty] = useState(100);
+  const [meal, setMeal] = useState<MealType>(defaultMeal);
+  const [errorMsg, setErrorMsg] = useState("");
+  const [lastCode, setLastCode] = useState("");
+  const [manualCode, setManualCode] = useState("");
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const controlsRef = useRef<IScannerControls | null>(null);
+  const lookupGuard = useRef(false);
+
+  function stopCamera() {
+    controlsRef.current?.stop();
+    controlsRef.current = null;
+  }
+
+  async function lookup(code: string) {
+    const clean = code.trim();
+    if (!clean || lookupGuard.current) return;
+    lookupGuard.current = true;
+    stopCamera();
+    setLastCode(clean);
+    setPhase("fetching");
+    try {
+      const food = await fetchOpenFoodFactsByBarcode(clean);
+      if (food) {
+        setProduct(food);
+        setQty(isPieceInput(food) ? 1 : 100);
+        setPhase("found");
+      } else {
+        setPhase("notfound");
+      }
+    } catch {
+      setErrorMsg("Recherche Open Food Facts indisponible. Réessaie ou saisis le code à la main.");
+      setPhase("error");
+    } finally {
+      lookupGuard.current = false;
+    }
+  }
+
+  // Démarre / arrête la caméra selon la phase.
+  useEffect(() => {
+    if (!open || phase !== "scan") return;
+    let cancelled = false;
+    const reader = new BrowserMultiFormatReader();
+    (async () => {
+      try {
+        const controls = await reader.decodeFromVideoDevice(undefined, videoRef.current ?? undefined, (result) => {
+          if (result) lookup(result.getText());
+        });
+        if (cancelled) controls.stop();
+        else controlsRef.current = controls;
+      } catch {
+        if (!cancelled) {
+          setErrorMsg("Caméra inaccessible. Autorise la caméra dans le navigateur, ou saisis le code à la main.");
+          setPhase("error");
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+      stopCamera();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, phase]);
+
+  useEffect(() => {
+    if (!open) {
+      stopCamera();
+      lookupGuard.current = false;
+    }
+  }, [open]);
+
+  if (!open) return null;
+
+  function close() {
+    stopCamera();
+    setPhase("scan");
+    setProduct(null);
+    setErrorMsg("");
+    setLastCode("");
+    setManualCode("");
+    onClose();
+  }
+  function rescan() {
+    setProduct(null);
+    setErrorMsg("");
+    setPhase("scan");
+  }
+
+  const preview = product ? scaledMacros(product, qty) : null;
+  const piece = product ? isPieceInput(product) : false;
+  const step = piece ? 1 : 10;
+
+  return (
+    <div className="snap-overlay" role="dialog" aria-modal="true">
+      <div className="snap-modal">
+        <div className="snap-head">
+          <h2>🏷️ Scanner un code-barres</h2>
+          <button className="snap-close" onClick={close} aria-label="Fermer">
+            ✕
+          </button>
+        </div>
+
+        {phase === "scan" && (
+          <>
+            <div className="barcode-scanner">
+              <video ref={videoRef} muted playsInline />
+              <div className="barcode-frame" />
+            </div>
+            <p className="snap-status barcode-hint">Vise le code-barres du produit…</p>
+            <div className="barcode-manual">
+              <label>Ou saisis le code manuellement</label>
+              <div className="row">
+                <input
+                  inputMode="numeric"
+                  value={manualCode}
+                  onChange={(e) => setManualCode(e.target.value.replace(/[^0-9]/g, ""))}
+                  placeholder="ex. 7622210449283"
+                />
+                <button className="btn secondary" disabled={manualCode.length < 8} onClick={() => lookup(manualCode)}>
+                  Chercher
+                </button>
+              </div>
+            </div>
+          </>
+        )}
+
+        {phase === "fetching" && <p className="snap-status">Recherche du produit… ({lastCode})</p>}
+
+        {phase === "notfound" && (
+          <div className="barcode-message">
+            <p className="snap-status snap-error">Produit introuvable pour le code {lastCode}.</p>
+            <p className="muted">Tous les produits ne sont pas dans Open Food Facts. Tu peux réessayer ou l'ajouter via la recherche par nom.</p>
+            <button className="btn" onClick={rescan}>Scanner à nouveau</button>
+          </div>
+        )}
+
+        {phase === "error" && (
+          <div className="barcode-message">
+            <p className="snap-status snap-error">{errorMsg}</p>
+            <div className="barcode-manual">
+              <label>Saisir le code manuellement</label>
+              <div className="row">
+                <input
+                  inputMode="numeric"
+                  value={manualCode}
+                  onChange={(e) => setManualCode(e.target.value.replace(/[^0-9]/g, ""))}
+                  placeholder="ex. 7622210449283"
+                />
+                <button className="btn secondary" disabled={manualCode.length < 8} onClick={() => lookup(manualCode)}>
+                  Chercher
+                </button>
+              </div>
+            </div>
+            <button className="btn" onClick={rescan}>Réessayer la caméra</button>
+          </div>
+        )}
+
+        {phase === "found" && product && preview && (
+          <>
+            <div className="product-card">
+              <div className="product-image" aria-hidden="true">
+                {product.imageUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={product.imageUrl} alt="" />
+                ) : (
+                  <span>{product.icon || "🏷️"}</span>
+                )}
+              </div>
+              <div className="product-info">
+                <h3>{product.name}</h3>
+                <p className="muted">
+                  {product.brand ? `${product.brand} · ` : ""}Code {product.barcode}
+                  {piece ? ` · 1 ${product.servingLabel || "portion"} ≈ ${estimateServingGrams(product)} g` : ""}
+                </p>
+                <div className="product-macros">
+                  <span>{preview.kcal} kcal</span>
+                  <span>P {preview.protein}g</span>
+                  <span>G {preview.carbs}g</span>
+                  <span>L {preview.fat}g</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="snap-item-row">
+              <label>Quantité</label>
+              <button className="qty-btn" onClick={() => setQty((q) => Math.max(0, Math.round((q - step) * 10) / 10))}>
+                −
+              </button>
+              <input
+                type="number"
+                min="0"
+                value={qty}
+                onChange={(e) => setQty(Math.max(0, Number(e.target.value) || 0))}
+              />
+              <span className="unit-pill">{unitLabel(product)}</span>
+              <button className="qty-btn" onClick={() => setQty((q) => Math.round((q + step) * 10) / 10)}>
+                +
+              </button>
+            </div>
+            {piece && <p className="muted" style={{ margin: "0 0 8px" }}>≈ {preview.grams} g au total</p>}
+
+            <div className="snap-footer">
+              <div className="snap-meal">
+                <label>Repas du {date}</label>
+                <select value={meal} onChange={(e) => setMeal(e.target.value as MealType)}>
+                  {MEALS.map((m) => (
+                    <option key={m}>{m}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="row">
+                <button className="btn secondary" onClick={rescan}>Rescanner</button>
+                <button
+                  className="btn"
+                  disabled={qty <= 0}
+                  onClick={() => {
+                    onConfirm(product, qty, meal);
+                    close();
+                  }}
+                >
+                  Ajouter au journal
+                </button>
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}

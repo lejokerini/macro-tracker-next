@@ -86,6 +86,36 @@ Ne jamais utiliser la clé `service_role` dans le front.
 - Carte produit avec image, marque, code-barres, portion et badge source.
 - Les produits Open Food Facts ajoutés au journal/placard sont conservés dans la sauvegarde locale et cloud.
 
+## CalSnap — Snap photo → calories (nouveau)
+
+Première brique de **CalSnap** (le « Snapchat des calories », inspiré de Cal AI) : on prend
+un repas en photo et l'IA estime les calories et les macros, puis on ajoute au journal.
+
+- Bouton **« 📸 Snap mon repas »** sur le Dashboard et dans le Journal.
+- Capture caméra ou import d'image → analyse par **Claude vision** via une route serveur
+  sécurisée (`app/api/scan-photo`).
+- Détection multi-aliments (une assiette = plusieurs items), portion et macros **éditables**
+  avant validation.
+- Les aliments scannés sont enregistrés comme aliments estimés et sauvegardés (local + cloud).
+
+### Configuration requise
+
+Ajouter la clé Anthropic **côté serveur** (jamais `NEXT_PUBLIC_`) :
+
+- En local : `ANTHROPIC_API_KEY=...` dans `.env.local`
+- Sur Vercel : Project Settings → Environment Variables → `ANTHROPIC_API_KEY`
+
+Puis installer la nouvelle dépendance et lancer :
+
+```powershell
+npm.cmd install
+npm.cmd run dev
+```
+
+Sans la clé, le bouton Snap renvoie un message d'erreur explicite (le reste de l'app fonctionne).
+
+Voir `CAHIER-DES-CHARGES-CALSNAP.md` (racine du dépôt) pour la feuille de route complète.
+
 ## V22 - Open Food Facts renforcé
 - Recherche Open Food Facts améliorée avec correction des requêtes courtes/accentuées (`oré` -> `oreo`, `nutel` -> `nutella`, etc.).
 - Tri prioritaire des produits avec image, marque, nutrition complète et produits France.
