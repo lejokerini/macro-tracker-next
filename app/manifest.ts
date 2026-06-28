@@ -2,9 +2,9 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "CalSnap — photo vers calories",
-    short_name: "CalSnap",
-    description: "Prends ton repas en photo, CalSnap estime les calories et les macros.",
+    name: "Macrolens — photo vers calories",
+    short_name: "Macrolens",
+    description: "Prends ton repas en photo, Macrolens estime les calories et les macros.",
     start_url: "/",
     scope: "/",
     display: "standalone",

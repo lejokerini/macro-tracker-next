@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 320" width="1080" height="320" role="img" aria-label="Macrolens">
+  <g transform="translate(40,32) scale(0.5)">
+    <rect width="512" height="512" rx="116" fill="#2f6b2f"/>
+    <circle cx="256" cy="262" r="150" fill="none" stroke="#ffffff" stroke-width="26"/>
+    <circle cx="256" cy="262" r="116" fill="#ffffff" opacity="0.08"/>
+    <rect x="196" y="232" width="40" height="24" rx="9" fill="#ffffff"/>
+    <rect x="199" y="180" width="10" height="56" rx="5" fill="#ffffff"/>
+    <rect x="211" y="180" width="10" height="56" rx="5" fill="#ffffff"/>
+    <rect x="223" y="180" width="10" height="56" rx="5" fill="#ffffff"/>
+    <rect x="206" y="252" width="20" height="100" rx="10" fill="#ffffff"/>
+    <rect x="288" y="180" width="26" height="88" rx="13" fill="#ffffff"/>
+    <rect x="291" y="262" width="20" height="92" rx="10" fill="#ffffff"/>
+    <circle cx="372" cy="150" r="27" fill="#f3a52c"/>
+  </g>
+  <text x="330" y="205" font-family="system-ui,'Segoe UI',Roboto,sans-serif" font-size="132" font-weight="800" letter-spacing="-3"><tspan fill="#2f6b2f">Macro</tspan><tspan fill="#5fa135">lens</tspan></text>
+  <text x="334" y="252" font-family="system-ui,'Segoe UI',Roboto,sans-serif" font-size="34" font-weight="600" letter-spacing="4" fill="#6d7469">PHOTO · CALORIES · MACROS</text>
+</svg>

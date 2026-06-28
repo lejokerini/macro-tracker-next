@@ -126,6 +126,11 @@ button,input,select,textarea{font:inherit}
 .barcode-message{text-align:center;padding:10px 4px;display:flex;flex-direction:column;gap:10px}
 .barcode-message .barcode-manual{text-align:left}
 
+/* Logo dans l'en-tête */
+.brand-head{display:flex;align-items:center;gap:14px}
+.brand-logo{width:56px;height:56px;border-radius:16px;flex:0 0 auto;box-shadow:0 8px 20px rgba(47,107,47,.22)}
+@media(max-width:700px){.brand-logo{width:46px;height:46px;border-radius:13px}}
+
 /* Bascule de thème */
 .theme-toggle{border:1px solid var(--border-strong);background:var(--surface-solid);border-radius:999px;padding:10px 14px;font-size:13px;font-weight:900;cursor:pointer;color:var(--text);transition:.18s ease;box-shadow:0 8px 18px rgba(31,45,20,.06)}
 .theme-toggle:hover{transform:translateY(-1px);border-color:var(--primary-2)}

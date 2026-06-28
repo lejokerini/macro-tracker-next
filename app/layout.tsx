@@ -3,13 +3,13 @@ import "./globals.css";
 import PwaRegister from "@/components/PwaRegister";
 
 export const metadata: Metadata = {
-  title: "CalSnap",
-  description: "Prends ton repas en photo, CalSnap estime les calories et les macros.",
-  applicationName: "CalSnap",
+  title: "Macrolens",
+  description: "Prends ton repas en photo, Macrolens estime les calories et les macros.",
+  applicationName: "Macrolens",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
-    title: "CalSnap",
+    title: "Macrolens",
     statusBarStyle: "black-translucent",
   },
   icons: {
