@@ -1,5 +1,4 @@
 import { rawFoods } from "@/data/raw-foods";
-import { ciqualFoods } from "@/data/ciqual-foods.generated";
 import type { DietType, Food, Store } from "@/lib/types";
 
 export const STORES: Record<Store, { label: string; factor: number }> = {
@@ -355,16 +354,36 @@ export function formatQuantity(food: Food | undefined, baseQty: number, displayQ
   return `${Math.round(baseQty * 10) / 10} ${unit}`;
 }
 
-export const foods: Food[] = [...supplementFoods, ...brandedFoods, ...ciqualFoods, ...localFoods];
+function buildSearchIndex(list: Food[]) {
+  return list.map(f => ({
+    f,
+    text: normalizeFoodText(`${f.name} ${f.category} ${f.ciqualCode || ""} ${f.brand || ""} ${(f.aliases || []).join(" ")}`),
+  }));
+}
 
-export const foodById = new Map(foods.map(f => [f.id, f]));
+// Aliments « cœur » toujours présents (compléments, marques, base interne) — légers, dans le bundle.
+const coreFoods: Food[] = [...supplementFoods, ...brandedFoods, ...localFoods];
+// La base Ciqual (3 484 aliments) est chargée à la demande (import dynamique) pour alléger l'ouverture.
+export let foods: Food[] = coreFoods;
+let foodById = new Map<string, Food>(foods.map(f => [f.id, f]));
+let foodSearchIndex = buildSearchIndex(foods);
+let ciqualLoaded = false;
+
 export function findFood(id: string) { return foodById.get(id); }
 
-// Index de recherche pré-calculé une seule fois (évite de re-normaliser 3 700+ aliments à chaque frappe).
-const foodSearchIndex = foods.map(f => ({
-  f,
-  text: normalizeFoodText(`${f.name} ${f.category} ${f.ciqualCode || ""} ${f.brand || ""} ${(f.aliases || []).join(" ")}`),
-}));
+export async function ensureCiqualLoaded(): Promise<boolean> {
+  if (ciqualLoaded) return false;
+  try {
+    const mod = await import("@/data/ciqual-foods.generated");
+    foods = [...coreFoods, ...mod.ciqualFoods];
+    foodById = new Map(foods.map(f => [f.id, f]));
+    foodSearchIndex = buildSearchIndex(foods);
+    ciqualLoaded = true;
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 function relevanceScore(food: Food, q: string) {
   if (!q) return food.source === "ciqual" ? 0 : 5;

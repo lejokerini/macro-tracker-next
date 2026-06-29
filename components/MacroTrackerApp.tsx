@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
-import { estimateServingGrams, findFood, foods, formatQuantity, isPieceInput, quantityToNutritionGrams, searchFoods, STORES, unitLabel } from "@/lib/food-engine";
+import { ensureCiqualLoaded, estimateServingGrams, findFood, foods, formatQuantity, isPieceInput, quantityToNutritionGrams, searchFoods, STORES, unitLabel } from "@/lib/food-engine";
 import { average7, calculateTargets, logMacros, recipeMacros, sumIngredients, weightTrendRecommendation } from "@/lib/nutrition";
 import { buildShoppingList, generateProgram, scoreProgram } from "@/lib/planner";
 import { seedRecipes } from "@/data/recipes";
@@ -14,7 +14,7 @@ import BodyFatModal from "@/components/BodyFatModal";
 import MacroInfoModal, { type MacroKind } from "@/components/MacroInfoModal";
 import CreateRecipeModal from "@/components/CreateRecipeModal";
 import { buildScannedFood, type EditableScanItem } from "@/lib/calsnap";
-import { CIQUAL_FOOD_COUNT } from "@/data/ciqual-foods.generated";
+import { CIQUAL_FOOD_COUNT } from "@/data/ciqual-meta";
 import type { DietType, Food, MealLogItem, MealType, PantryItem, Profile, ProgramMeal, Recipe, Store, WeightLog } from "@/lib/types";
 
 type Tab = "dashboard" | "profil" | "journal" | "catalogue" | "recettes" | "programme" | "courses" | "placard" | "poids" | "sauvegarde";
@@ -137,6 +137,7 @@ export default function MacroTrackerApp() {
   const [onlyMealPrep, setOnlyMealPrep] = useState(false);
   const [onlySoyFree, setOnlySoyFree] = useState(false);
   const [createRecipeOpen, setCreateRecipeOpen] = useState(false);
+  const [ciqualReady, setCiqualReady] = useState(false);
   const [selectedRecipeId, setSelectedRecipeId] = useState(seedRecipes[0]?.id || "");
   const [recipeServings, setRecipeServings] = useState(1);
   const [checkedRecipeItems, setCheckedRecipeItems] = useState<Record<string, boolean>>({});
@@ -167,7 +168,7 @@ export default function MacroTrackerApp() {
     [...(state.offFoods || []), ...offResults].forEach(f => map.set(f.id, f));
     return [...map.values()];
   }, [state.offFoods, offResults]);
-  const allFoods = useMemo(() => [...dynamicFoods, ...foods], [dynamicFoods]);
+  const allFoods = useMemo(() => [...dynamicFoods, ...foods], [dynamicFoods, ciqualReady]);
   function findFoodAny(id?: string) { return id ? allFoods.find(f => f.id === id) : undefined; }
   const recentFoods = useMemo(() => {
     const seen = new Set<string>();
@@ -186,7 +187,7 @@ export default function MacroTrackerApp() {
   const activeProfile = state.profiles.find(p => p.id === state.activeProfileId);
   const targets = activeProfile ? calculateTargets(activeProfile) : null;
   const waterGoal = activeProfile ? Math.max(1500, Math.round(activeProfile.weightKg * 35)) : 2000;
-  const categories = useMemo(() => ["all", ...Array.from(new Set(foods.map(f => f.category))).sort((a,b)=>a.localeCompare(b,"fr"))], []);
+  const categories = useMemo(() => ["all", ...Array.from(new Set(foods.map(f => f.category))).sort((a,b)=>a.localeCompare(b,"fr"))], [ciqualReady]);
 
   useEffect(() => {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -216,7 +217,7 @@ export default function MacroTrackerApp() {
     return () => listener.subscription.unsubscribe();
   }, [supabase]);
 
-  const staticVisibleFoods = useMemo(() => searchFoods(query, { category, diet: activeProfile?.diet, excludeAllergens: activeProfile?.allergies }), [query, category, activeProfile?.diet, activeProfile?.allergies]);
+  const staticVisibleFoods = useMemo(() => searchFoods(query, { category, diet: activeProfile?.diet, excludeAllergens: activeProfile?.allergies }), [query, category, activeProfile?.diet, activeProfile?.allergies, ciqualReady]);
   const visibleFoods = useMemo(() => {
     const map = new Map<string, Food>();
     if (category === "all" || category.startsWith("Produit de marque")) offResults.forEach(f => map.set(f.id, f));
@@ -468,6 +469,7 @@ export default function MacroTrackerApp() {
     setTheme(next);
   }, []);
   useEffect(() => { setBodyFat(activeProfile?.bodyFatPct ? String(activeProfile.bodyFatPct) : ""); }, [activeProfile?.id]);
+  useEffect(() => { ensureCiqualLoaded().then(() => setCiqualReady(true)); }, []);
   function toggleTheme() {
     setTheme(prev => {
       const next = prev === "dark" ? "light" : "dark";
