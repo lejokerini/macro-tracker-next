@@ -1,5 +1,5 @@
 import { estimateServingGrams, findFood, isPieceInput, unitLabel } from "@/lib/food-engine";
-import { recipeMacros } from "@/lib/nutrition";
+import { calculateTargets, recipeMacros } from "@/lib/nutrition";
 import type { PantryItem, Profile, ProgramMeal, Recipe, Store, Targets } from "@/lib/types";
 
 export function isRecipeAllowed(recipe: Recipe, profile: Profile) {
@@ -11,21 +11,43 @@ export function isRecipeAllowed(recipe: Recipe, profile: Profile) {
   return !allergenConflict;
 }
 
+// Répartition des calories de la journée par repas (la somme des ratios fait 1).
+function mealDistribution(profile: Profile): { mealType: MealType; ratio: number }[] {
+  if (profile.intermittentFasting) {
+    // Jeûne intermittent 16:8 : pas de petit-déjeuner, calories concentrées sur la fenêtre.
+    return [
+      { mealType: "Déjeuner", ratio: 0.45 },
+      { mealType: "Dîner", ratio: 0.40 },
+      { mealType: "Collation", ratio: 0.15 },
+    ];
+  }
+  return [
+    { mealType: "Petit-déjeuner", ratio: 0.25 },
+    { mealType: "Déjeuner", ratio: 0.35 },
+    { mealType: "Dîner", ratio: 0.30 },
+    { mealType: "Collation", ratio: 0.10 },
+  ];
+}
+
 export function generateProgram(profile: Profile, recipes: Recipe[], days = 7): ProgramMeal[] {
   const allowed = recipes.filter(r => isRecipeAllowed(r, profile));
   const meals: ProgramMeal[] = [];
-  const types = ["Petit-déjeuner", "Déjeuner", "Dîner", "Collation"] as const;
+  const distribution = mealDistribution(profile);
+  const targetKcal = calculateTargets(profile).kcal;
   const today = new Date();
   for (let d=0; d<days; d++) {
     const date = new Date(today); date.setDate(today.getDate()+d);
     const iso = date.toISOString().slice(0,10);
     const dayIdx = date.getDay();
     const dayType = profile.trainingDays.includes(dayIdx) ? "entrainement" : "repos";
-    types.forEach((mealType, i) => {
+    distribution.forEach(({ mealType, ratio }, i) => {
       const pool = allowed.filter(r => r.mealType === mealType);
       if (!pool.length) return;
       const chosen = pool[(d + i) % pool.length];
-      meals.push({ date: iso, dayType, mealType, recipeId: chosen.id });
+      const baseKcal = recipeMacros(chosen).kcal;
+      // Facteur de portion pour atteindre les kcal visées du repas (borné pour rester réaliste).
+      const factor = baseKcal > 0 ? Math.min(3, Math.max(0.5, Math.round((targetKcal * ratio / baseKcal) * 10) / 10)) : 1;
+      meals.push({ date: iso, dayType, mealType, recipeId: chosen.id, factor });
     });
   }
   return meals;
@@ -35,9 +57,10 @@ export function scoreProgram(program: ProgramMeal[], recipes: Recipe[], targets:
   const byDate = new Map<string, { kcal:number; protein:number; carbs:number; fat:number; cost:number; titles:Set<string> }>();
   program.forEach(pm => {
     const r = recipes.find(x => x.id === pm.recipeId); if (!r) return;
-    const m = recipeMacros(r); const cost = estimateRecipeCost(r, store);
+    const f = pm.factor ?? 1;
+    const m = recipeMacros(r); const cost = estimateRecipeCost(r, store) * f;
     const day = byDate.get(pm.date) ?? { kcal:0, protein:0, carbs:0, fat:0, cost:0, titles:new Set<string>() };
-    day.kcal += m.kcal; day.protein += m.protein; day.carbs += m.carbs; day.fat += m.fat; day.cost += cost; day.titles.add(r.title);
+    day.kcal += m.kcal * f; day.protein += m.protein * f; day.carbs += m.carbs * f; day.fat += m.fat * f; day.cost += cost; day.titles.add(r.title);
     byDate.set(pm.date, day);
   });
   const days = [...byDate.values()]; if(!days.length) return { score:0, cost:0, notes:["Aucun programme généré"] };
@@ -81,7 +104,7 @@ export function estimateRecipeCost(recipe: Recipe, store: Store) {
 
 export function buildShoppingList(program: ProgramMeal[], recipes: Recipe[], pantry: PantryItem[], store: Store) {
   const needs = new Map<string, number>();
-  program.forEach(pm => { const r=recipes.find(x=>x.id===pm.recipeId); r?.ingredients.forEach(it => needs.set(it.foodId, (needs.get(it.foodId) || 0) + it.qty)); });
+  program.forEach(pm => { const r=recipes.find(x=>x.id===pm.recipeId); const f = pm.factor ?? 1; r?.ingredients.forEach(it => needs.set(it.foodId, (needs.get(it.foodId) || 0) + it.qty * f)); });
   const pantryMap = new Map<string, number>(); pantry.forEach(p => pantryMap.set(p.foodId, (pantryMap.get(p.foodId)||0)+p.qty));
   return [...needs.entries()].map(([foodId, qty]) => {
     const f = findFood(foodId);

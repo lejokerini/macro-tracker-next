@@ -306,3 +306,8 @@ button,input,select,textarea{font:inherit}
 .bf-result{margin:12px 0;padding:14px;border:1px solid #d8e9cc;border-radius:16px;background:linear-gradient(135deg,#eef8e9,#fffaf0);display:flex;flex-direction:column;align-items:center;gap:2px;text-align:center}
 .bf-result strong{font-size:24px;letter-spacing:-.03em;color:var(--primary)}
 [data-theme="dark"] .bf-result{background:linear-gradient(135deg,#16241a,#1b2417);border-color:#2a402c}
+
+/* Recettes du programme cliquables */
+.program-item{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;text-align:left;cursor:pointer;color:var(--text);font:inherit}
+.program-item-main{min-width:0}
+.program-arrow{flex:0 0 auto;font-size:24px;font-weight:900;color:var(--primary);opacity:.55}

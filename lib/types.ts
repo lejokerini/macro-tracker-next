@@ -52,6 +52,7 @@ export type Profile = {
   dislikedFoods: string[];
   likedFoods: string[];
   trainingDays: number[];
+  intermittentFasting?: boolean;
   maxPrepTime: number;
   cookingLevel: "etudiant" | "normal" | "meal_prep" | "famille";
 };
@@ -62,4 +63,4 @@ export type PantryItem = { id: string; foodId: string; qty: number; unit: "g" | 
 export type WeightLog = { id: string; date: string; weightKg: number; note?: string };
 export type RecipeIngredient = { foodId: string; qty: number };
 export type Recipe = { id: string; title: string; mealType: MealType; servings: number; prepTime: number; difficulty: "facile" | "moyen" | "avance"; storageDays: number; tags: string[]; diets: DietType[]; instructions: string[]; ingredients: RecipeIngredient[]; isCustom?: boolean };
-export type ProgramMeal = { date: string; dayType: "entrainement" | "repos"; mealType: MealType; recipeId: string };
+export type ProgramMeal = { date: string; dayType: "entrainement" | "repos"; mealType: MealType; recipeId: string; factor?: number };
