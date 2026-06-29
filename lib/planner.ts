@@ -1,6 +1,6 @@
 import { estimateServingGrams, findFood, isPieceInput, unitLabel } from "@/lib/food-engine";
 import { calculateTargets, recipeMacros } from "@/lib/nutrition";
-import type { PantryItem, Profile, ProgramMeal, Recipe, Store, Targets } from "@/lib/types";
+import type { MealType, PantryItem, Profile, ProgramMeal, Recipe, Store, Targets } from "@/lib/types";
 
 export function isRecipeAllowed(recipe: Recipe, profile: Profile) {
   if (!recipe.diets.includes(profile.diet)) return false;
