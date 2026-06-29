@@ -324,5 +324,8 @@ button,input,select,textarea{font:inherit}
 [data-theme="dark"] .filter-chip{background:#161d17;border-color:#2f4a31;color:#cdddc9}
 [data-theme="dark"] .filter-chip.active{background:var(--primary-2);border-color:var(--primary-2);color:#0f1410}
 .qty-btn-sm{width:34px;height:34px;font-size:18px;border-radius:11px}
+.streak-badge{display:inline-flex;align-items:center;gap:5px;background:linear-gradient(135deg,#fff4dc,#ffe0c2);color:#9a4a00;border:1px solid #ead3a1;border-radius:999px;padding:6px 12px;font-size:13px;font-weight:950}
+.badge-streak{background:linear-gradient(135deg,#fff4dc,#ffe0c2)!important;color:#9a4a00!important;border-color:#ead3a1!important}
+[data-theme="dark"] .streak-badge{background:linear-gradient(135deg,#3a2e12,#2c2208);color:#f0c879;border-color:#5a4a22}
 .onboarding-card{background:linear-gradient(135deg,#eef8e9,#fffaf0);border:1px solid #d8e9cc}
 [data-theme="dark"] .onboarding-card{background:linear-gradient(135deg,#16241a,#1b2417);border-color:#2a402c}

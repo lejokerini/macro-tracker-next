@@ -17,11 +17,11 @@ import { buildScannedFood, type EditableScanItem } from "@/lib/calsnap";
 import { CIQUAL_FOOD_COUNT } from "@/data/ciqual-meta";
 import type { DietType, Food, MealLogItem, MealType, PantryItem, Profile, ProgramMeal, Recipe, Store, WeightLog } from "@/lib/types";
 
-type Tab = "dashboard" | "profil" | "journal" | "catalogue" | "recettes" | "programme" | "courses" | "placard" | "poids" | "sauvegarde";
+type Tab = "dashboard" | "profil" | "journal" | "catalogue" | "recettes" | "programme" | "courses" | "placard" | "poids" | "progres" | "sauvegarde";
 type State = { profiles: Profile[]; activeProfileId?: string; logs: MealLogItem[]; pantry: PantryItem[]; weights: WeightLog[]; recipes: Recipe[]; program: ProgramMeal[]; offFoods: Food[]; favorites: string[]; water: Record<string, number> };
 type MicroKey = "sugars" | "salt" | "calcium" | "iron" | "magnesium" | "potassium" | "sodium" | "zinc" | "vitA" | "vitD" | "vitE" | "vitC" | "vitB1" | "vitB2" | "vitB3" | "vitB6" | "vitB9" | "vitB12";
 
-const TAB_LABELS: Record<Tab, string> = { dashboard: "Dashboard", profil: "Profil", journal: "Journal", catalogue: "Catalogue", recettes: "Recettes", programme: "Programme", courses: "Courses", placard: "Placard", poids: "Poids", sauvegarde: "Mon compte" };
+const TAB_LABELS: Record<Tab, string> = { dashboard: "Dashboard", profil: "Profil", journal: "Journal", catalogue: "Catalogue", recettes: "Recettes", programme: "Programme", courses: "Courses", placard: "Placard", poids: "Poids", progres: "Progrès", sauvegarde: "Mon compte" };
 const STORAGE_KEY = "macro-tracker-next-v3";
 const MEALS: MealType[] = ["Petit-déjeuner", "Déjeuner", "Dîner", "Collation"];
 const ALLERGENS = ["gluten","lait","oeufs","soja","fruits_a_coque","poisson","crustaces","mollusques","sesame","moutarde","celeri","alcool"];
@@ -127,6 +127,7 @@ export default function MacroTrackerApp() {
   const [tab, setTab] = useState<Tab>("dashboard");
   const [date, setDate] = useState(today());
   const [copyDate, setCopyDate] = useState(today());
+  const [progressPeriod, setProgressPeriod] = useState(7);
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("all");
   const [selectedMeal, setSelectedMeal] = useState<MealType>("Déjeuner");
@@ -274,6 +275,54 @@ export default function MacroTrackerApp() {
     });
     return out;
   }, [state.logs, date, allFoods]);
+  const streak = useMemo(() => {
+    const set = new Set(state.logs.map(l => l.date));
+    let s = 0;
+    const d = new Date();
+    if (!set.has(d.toISOString().slice(0, 10))) d.setDate(d.getDate() - 1);
+    while (set.has(d.toISOString().slice(0, 10))) { s++; d.setDate(d.getDate() - 1); }
+    return s;
+  }, [state.logs]);
+  const history = useMemo(() => {
+    const period = progressPeriod;
+    const start = new Date(); start.setDate(start.getDate() - (period - 1));
+    const startIso = start.toISOString().slice(0, 10);
+    const byDate = new Map<string, { kcal: number; protein: number; carbs: number; fat: number }>();
+    state.logs.forEach(l => {
+      if (l.date < startIso) return;
+      const m = macrosFromBaseGrams(findFoodAny(l.foodId), l.qty);
+      const cur = byDate.get(l.date) || { kcal: 0, protein: 0, carbs: 0, fat: 0 };
+      cur.kcal += m.kcal; cur.protein += m.protein; cur.carbs += m.carbs; cur.fat += m.fat;
+      byDate.set(l.date, cur);
+    });
+    const loggedDays = [...byDate.values()];
+    const daysLogged = loggedDays.length;
+    const sum = loggedDays.reduce((a, d) => ({ kcal: a.kcal + d.kcal, protein: a.protein + d.protein, carbs: a.carbs + d.carbs, fat: a.fat + d.fat }), { kcal: 0, protein: 0, carbs: 0, fat: 0 });
+    const avg = daysLogged ? { kcal: Math.round(sum.kcal / daysLogged), protein: Math.round(sum.protein / daysLogged), carbs: Math.round(sum.carbs / daysLogged), fat: Math.round(sum.fat / daysLogged) } : { kcal: 0, protein: 0, carbs: 0, fat: 0 };
+    let calOk = 0, protOk = 0;
+    if (targets) loggedDays.forEach(d => {
+      if (Math.abs(d.kcal - targets.kcal) <= targets.kcal * 0.1) calOk++;
+      if (d.protein >= targets.protein * 0.9) protOk++;
+    });
+    const pctCal = daysLogged ? Math.round((calOk / daysLogged) * 100) : 0;
+    const pctProt = daysLogged ? Math.round((protOk / daysLogged) * 100) : 0;
+    const bucketDays = period <= 30 ? 1 : period <= 182 ? 7 : 30;
+    const nBuckets = Math.ceil(period / bucketDays);
+    const points: { kcal: number; label: string }[] = [];
+    for (let b = 0; b < nBuckets; b++) {
+      let bs = 0, bc = 0, lastIso = "";
+      for (let k = 0; k < bucketDays; k++) {
+        const off = b * bucketDays + k;
+        if (off >= period) break;
+        const dd = new Date(start); dd.setDate(start.getDate() + off);
+        lastIso = dd.toISOString().slice(0, 10);
+        const dv = byDate.get(lastIso);
+        if (dv) { bs += dv.kcal; bc++; }
+      }
+      points.push({ kcal: bc ? Math.round(bs / bc) : 0, label: lastIso.slice(5) });
+    }
+    return { avg, daysLogged, daysInPeriod: period, pctCal, pctProt, points };
+  }, [state.logs, progressPeriod, targets, allFoods]);
   const programScore = activeProfile && targets ? scoreProgram(state.program, state.recipes, targets, activeProfile.weeklyBudget, activeProfile.store) : null;
   const shopping = activeProfile ? buildShoppingList(state.program, state.recipes, state.pantry, activeProfile.store) : [];
 
@@ -486,6 +535,7 @@ export default function MacroTrackerApp() {
       <div className="brand">
         <div className="brand-head"><img className="brand-logo" src="/logo-mark.svg" alt="Macrolens" width={56} height={56} /><h1>Macro<span>lens</span></h1></div>
         <div className="hero-badges">
+          {streak > 0 && <span className="badge-streak">🔥 {streak} j de suite</span>}
           <span>{CIQUAL_FOOD_COUNT.toLocaleString("fr-FR")} aliments Ciqual</span>
           <span>{seedRecipes.length} recettes</span>
           <span>Quantités ajustables</span>
@@ -497,7 +547,7 @@ export default function MacroTrackerApp() {
         <span className="cloud-mini">{session?.user ? `Cloud connecté · ${autoSync ? "auto-save ON" : "auto-save OFF"}` : supabase ? "Cloud prêt · non connecté" : "Cloud non configuré"}</span>
       </div>
     </header>
-    <nav className="tabs">{(["dashboard","profil","journal","catalogue","recettes","programme","courses","placard","poids","sauvegarde"] as Tab[]).map(t => <button key={t} className={`tab ${tab===t?"active":""}`} onClick={()=>setTab(t)}>{TAB_LABELS[t]}</button>)}<button className="theme-toggle" onClick={toggleTheme} aria-label="Basculer le thème clair/sombre">{theme === "dark" ? "☀️ Clair" : "🌙 Sombre"}</button></nav>
+    <nav className="tabs">{(["dashboard","profil","journal","catalogue","recettes","programme","courses","placard","poids","progres","sauvegarde"] as Tab[]).map(t => <button key={t} className={`tab ${tab===t?"active":""}`} onClick={()=>setTab(t)}>{TAB_LABELS[t]}</button>)}<button className="theme-toggle" onClick={toggleTheme} aria-label="Basculer le thème clair/sombre">{theme === "dark" ? "☀️ Clair" : "🌙 Sombre"}</button></nav>
 
     {tab === "dashboard" && <section className="grid">
       {!activeProfile && <div className="card span-12 onboarding-card"><h2>👋 Bienvenue sur Macrolens</h2><p className="muted">Crée ton profil pour calculer tes calories et macros personnalisées — puis prends ton premier repas en photo.</p><div className="row" style={{marginTop:8}}><button className="btn" onClick={()=>setTab("profil")}>Créer mon profil</button><button className="btn secondary" onClick={()=>setSnapOpen(true)}>📸 Essayer le snap</button></div></div>}
@@ -545,6 +595,18 @@ export default function MacroTrackerApp() {
 
     {tab === "poids" && <section className="grid"><div className="card span-4"><h2>Pesée à jeun</h2><input type="text" inputMode="decimal" placeholder="Poids du matin (ex. 65,45)" onKeyDown={e=>{if(e.key==='Enter'){const w=frNum((e.target as HTMLInputElement).value,0); if(w>0) addWeight(w);}}}/><button className="btn" onClick={()=>{const w=frNum(prompt("Poids à jeun ?"),0); if(w>0) addWeight(w);}}>Ajouter pesée</button></div><div className="card span-8"><h2>Suivi du poids</h2><p>Moyenne 7 jours : <strong>{average7(state.weights) ?? "—"} kg</strong></p><p className="notice">{activeProfile ? weightTrendRecommendation(activeProfile, state.weights) : "Crée un profil pour obtenir une recommandation."}</p><WeightChart weights={state.weights}/><div className="list">{state.weights.slice(-10).reverse().map(w=><div className="item" key={w.id}>{w.date} · {w.weightKg} kg · <span className="muted">{w.note}</span></div>)}</div></div></section>}
 
+    {tab === "progres" && <section className="grid">
+      <div className="card span-12">
+        <div className="space"><h2>📈 Progrès</h2>{streak > 0 && <span className="streak-badge">🔥 {streak} {streak > 1 ? "jours" : "jour"} de suite</span>}</div>
+        <div className="row" style={{marginBottom:10}}>{[{d:7,l:"7 jours"},{d:30,l:"30 jours"},{d:182,l:"6 mois"},{d:365,l:"1 an"}].map(p=><button key={p.d} type="button" className={`filter-chip ${progressPeriod===p.d?"active":""}`} onClick={()=>setProgressPeriod(p.d)}>{p.l}</button>)}</div>
+        <p className="muted">Calories par jour vs ta cible (ligne pointillée).</p>
+        <HistoryChart points={history.points} target={targets?.kcal}/>
+        <div className="pillbar" style={{marginTop:12}}><div className="kpi">Moy. kcal <strong>{history.avg.kcal}</strong></div><div className="kpi">Moy. protéines <strong>{history.avg.protein}g</strong></div><div className="kpi">Jours suivis <strong>{history.daysLogged}/{history.daysInPeriod}</strong></div><div className="kpi">🔥 Streak <strong>{streak}</strong></div></div>
+        {targets && history.daysLogged > 0 && <div className="micro-grid" style={{marginTop:12}}><span>Cible calories atteinte<strong>{history.pctCal}% des jours</strong></span><span>Cible protéines atteinte<strong>{history.pctProt}% des jours</strong></span></div>}
+        {!history.daysLogged && <p className="form-help">Logge tes repas quelques jours pour voir tes tendances apparaître ici.</p>}
+      </div>
+    </section>}
+
     {tab === "sauvegarde" && <section className="grid">
       <div className="card span-6"><h2>Mon compte & cloud</h2><p className="muted">Gère ta connexion, l’auto-sauvegarde cloud et la synchronisation de tes données entre appareils.</p>{!supabase && <div className="notice">Supabase n'est pas encore configuré. Ajoute les variables <strong>NEXT_PUBLIC_SUPABASE_URL</strong> et <strong>NEXT_PUBLIC_SUPABASE_ANON_KEY</strong>.</div>}{session?.user ? <div className="cloud-box"><strong>Connecté</strong><p className="muted">{session.user.email}</p><div className="cloud-status"><span>{autoSync ? "Auto-sauvegarde activée" : "Auto-sauvegarde désactivée"}</span><strong>{lastCloudSaveAt ? `Dernière sauvegarde : ${new Date(lastCloudSaveAt).toLocaleString("fr-FR")}` : "Pas encore sauvegardé"}</strong></div><label className="toggle-line"><input type="checkbox" checked={autoSync} onChange={e=>setAutoSync(e.target.checked)} style={{width:"auto"}}/> Auto-sauvegarder après chaque modification</label><div className="row"><button className="btn" onClick={saveCloud}>Sauvegarder maintenant</button><button className="btn secondary" onClick={loadCloud}>Charger depuis le cloud</button><button className="btn danger" onClick={signOut}>Déconnexion</button></div></div> : <div className="cloud-box"><label>Email</label><input value={authEmail} onChange={e=>setAuthEmail(e.target.value)} placeholder="ton@email.com"/><label>Mot de passe</label><input type="password" value={authPassword} onChange={e=>setAuthPassword(e.target.value)} placeholder="8 caractères minimum"/><div className="row"><button className="btn" onClick={signIn} disabled={!supabase || !authEmail || authPassword.length < 6}>Se connecter</button><button className="btn secondary" onClick={signUp} disabled={!supabase || !authEmail || authPassword.length < 6}>Créer un compte</button></div></div>}{authMessage && <p className="notice">{authMessage}</p>}{syncStatus && <p className="notice">{syncStatus}</p>}</div>
       <div className="card span-6"><h2>Sauvegarde locale</h2><p className="muted">Exporte ou importe une sauvegarde JSON complète de ton espace personnel.</p><button className="btn" onClick={exportJson}>Exporter JSON complet</button><label>Importer sauvegarde</label><input type="file" accept="application/json" onChange={e=>importJson(e.target.files?.[0] || null)}/></div>
@@ -568,7 +630,7 @@ export default function MacroTrackerApp() {
     {menuOpen && <div className="sheet-overlay" onClick={()=>setMenuOpen(false)}>
       <div className="sheet" onClick={e=>e.stopPropagation()}>
         <div className="sheet-head"><strong>Menu</strong><button className="snap-close" onClick={()=>setMenuOpen(false)} aria-label="Fermer">✕</button></div>
-        <div className="sheet-group"><span className="sheet-group-title">Suivi</span><button className="sheet-item" onClick={()=>{setTab("poids");setMenuOpen(false);}}>⚖️ Poids</button></div>
+        <div className="sheet-group"><span className="sheet-group-title">Suivi</span><button className="sheet-item" onClick={()=>{setTab("progres");setMenuOpen(false);}}>📈 Progrès</button><button className="sheet-item" onClick={()=>{setTab("poids");setMenuOpen(false);}}>⚖️ Poids</button></div>
         <div className="sheet-group"><span className="sheet-group-title">Cuisine & planning</span><button className="sheet-item" onClick={()=>{setTab("recettes");setMenuOpen(false);}}>🍳 Recettes</button><button className="sheet-item" onClick={()=>{setTab("programme");setMenuOpen(false);}}>🗓️ Programme</button><button className="sheet-item" onClick={()=>{setTab("courses");setMenuOpen(false);}}>🛒 Courses</button><button className="sheet-item" onClick={()=>{setTab("placard");setMenuOpen(false);}}>🧺 Placard</button></div>
         <div className="sheet-group"><span className="sheet-group-title">Mon compte</span><button className="sheet-item" onClick={()=>{setTab("profil");setMenuOpen(false);}}>👤 Profil</button><button className="sheet-item" onClick={()=>{setTab("sauvegarde");setMenuOpen(false);}}>☁️ Mon compte</button></div>
         <div className="sheet-group"><span className="sheet-group-title">Apparence</span><button className="sheet-item" onClick={toggleTheme}>{theme==="dark"?"☀️ Thème clair":"🌙 Thème sombre"}</button></div>
@@ -770,6 +832,21 @@ function MacroPie({ protein, carbs, fat }: { protein: number; carbs: number; fat
         <circle key={i} cx="64" cy="64" r={r} fill="none" stroke={colors[i]} strokeWidth="16" strokeDasharray={a.dash} strokeDashoffset={a.off} transform="rotate(-90 64 64)" />
       ))}
       <text x="64" y="68" textAnchor="middle" className="ring-sub">{tot > 0 ? "P · G · L" : "—"}</text>
+    </svg>
+  );
+}
+function HistoryChart({ points, target }: { points: { kcal: number; label: string }[]; target?: number }) {
+  if (points.length < 2) return <div className="chart row" style={{ justifyContent: "center" }}>Pas encore assez de données pour tracer une courbe.</div>;
+  const values = points.map(p => p.kcal);
+  const maxV = Math.max(target || 0, ...values, 1);
+  const range = Math.max(1, maxV);
+  const y = (v: number) => 100 - (v / range) * 90 - 5;
+  const line = points.map((p, i) => `${(i / (points.length - 1)) * 100},${y(p.kcal)}`).join(" ");
+  const targetY = target ? y(target) : null;
+  return (
+    <svg className="chart" viewBox="0 0 100 100" preserveAspectRatio="none">
+      {targetY !== null && <line x1="0" y1={targetY} x2="100" y2={targetY} stroke="currentColor" strokeWidth="0.6" strokeDasharray="2 2" opacity="0.45" />}
+      <polyline points={line} fill="none" stroke="currentColor" strokeWidth="2" />
     </svg>
   );
 }
