@@ -574,64 +574,99 @@ function NovaBadge({ group }: { group?: number }) {
   const labels: Record<number, string> = { 1: "Non transformé", 2: "Peu transformé", 3: "Transformé", 4: "Ultra-transformé" };
   return <span className={`nova-badge nova-${group}`} title={`NOVA ${group} — ${labels[group]}`}>NOVA {group}</span>;
 }
+function deaccent(s: string) {
+  return s.toLowerCase().normalize("NFD").replace(/\p{Diacritic}/gu, "");
+}
 function foodIcon(food?: Food) {
   if (!food) return "🍽️";
   if (food.icon) return food.icon;
-  const n = food.name.toLowerCase();
-  if (/whey|protéine|proteine|isolate|isolat|caseine|caséine|gainer|bcaa|eaa|collagene|collagène/.test(n)) return "🥤";
-  if (/creatine|créatine|pre workout|pré workout|booster/.test(n)) return "⚡";
-  if (/vitamine|multivitamines|magnesium|magnésium/.test(n)) return "💊";
-  if (/electrolytes|électrolytes/.test(n)) return "💧";
-  if (/oeuf|œuf/.test(n)) return "🥚";
-  if (/fromage|comté|comte|emmental|camembert|brie|chèvre|chevre|mozzarella|parmesan|cheddar|feta|raclette/.test(n)) return "🧀";
-  if (/avocat/.test(n)) return "🥑";
-  if (/tomate/.test(n)) return "🍅";
-  if (/brocoli|salade|épinard|epinard|chou|courgette|haricot vert|poivron|légume|legume/.test(n)) return "🥦";
-  if (/carotte/.test(n)) return "🥕";
-  if (/ma[iï]s/.test(n)) return "🌽";
-  if (/champignon/.test(n)) return "🍄";
-  if (/lentille|pois chiche|haricot|fève|feve|légumineuse|legumineuse/.test(n)) return "🫘";
-  if (/noix|amande|noisette|cajou|pistache|cacahu[èe]te/.test(n)) return "🥜";
-  if (/huile|olive/.test(n)) return "🫒";
-  if (/caf[ée]|expresso|espresso/.test(n)) return "☕";
-  if (/th[ée] |infusion/.test(n)) return "🍵";
-  if (/jus |smoothie/.test(n)) return "🧃";
-  if (/\beau\b|water/.test(n)) return "💧";
-  if (/vin|champagne/.test(n)) return "🍷";
-  if (/bi[èe]re/.test(n)) return "🍺";
-  if (/chocolat/.test(n)) return "🍫";
-  if (/glace|sorbet|crème glacée|creme glacee/.test(n)) return "🍨";
-  if (/g[âa]teau|cake|tarte|p[âa]tisserie/.test(n)) return "🍰";
-  if (/bonbon|confiserie/.test(n)) return "🍬";
-  if (/miel/.test(n)) return "🍯";
-  if (/pizza/.test(n)) return "🍕";
-  if (/p[âa]tes|spaghetti|penne|tagliatelle|lasagne|raviol/.test(n)) return "🍝";
-  if (/burger|hamburger/.test(n)) return "🍔";
-  if (/sandwich|wrap|kebab|panini/.test(n)) return "🥪";
-  if (/riz|risotto/.test(n)) return "🍚";
-  if (/frite|pomme de terre|patate/.test(n)) return "🍟";
-  if (/sushi|maki|sashimi/.test(n)) return "🍣";
-  if (/crevette|gambas|crabe|homard|langoustine/.test(n)) return "🦐";
-  if (/banane/.test(n)) return "🍌";
-  if (/pomme(?! de terre)/.test(n)) return "🍎";
-  if (/orange|cl[ée]mentine|mandarine/.test(n)) return "🍊";
-  if (/kiwi/.test(n)) return "🥝";
-  if (/fraise/.test(n)) return "🍓";
-  if (/raisin/.test(n)) return "🍇";
-  if (/past[èe]que/.test(n)) return "🍉";
-  if (/ananas/.test(n)) return "🍍";
-  if (/mangue/.test(n)) return "🥭";
-  if (/cerise/.test(n)) return "🍒";
-  if (/p[êe]che|abricot|nectarine/.test(n)) return "🍑";
-  if (/citron|lime/.test(n)) return "🍋";
-  if (/poire/.test(n)) return "🍐";
-  if (/oreo|biscuit|cookie|sablé|sable|madeleine|gâteau|gateau/.test(n)) return "🍪";
-  if (/tender|poulet|dinde|viande|steak/.test(n)) return "🍗";
-  if (/yaourt|yogourt|skyr|fromage blanc|lait/.test(n)) return "🥛";
-  if (/banane|pomme|orange|kiwi|fruit/.test(n)) return "🍌";
-  if (/riz|pâtes|pates|pain|céréale|cereale/.test(n)) return "🥖";
-  if (/tomate|carotte|salade|légume|legume/.test(n)) return "🥕";
-  if (/saumon|thon|poisson/.test(n)) return "🐟";
+  const n = deaccent(food.name);
+  const has = (re: RegExp) => re.test(n);
+
+  // Compléments
+  if (has(/whey|proteine|isolat|isolate|caseine|gainer|\bbcaa\b|\beaa\b|collagene/)) return "🥤";
+  if (has(/creatine|pre ?workout|booster/)) return "⚡";
+  if (has(/multivitamine|vitamine|magnesium|omega|complement/)) return "💊";
+  if (has(/electrolyte/)) return "💧";
+
+  // Œufs & produits laitiers
+  if (has(/oeuf|œuf/)) return "🥚";
+  if (has(/yaourt|yogourt|skyr|fromage blanc|petit suisse|fromage frais/)) return "🥛";
+  if (has(/fromage|comte|emmental|camembert|\bbrie\b|chevre|mozzarella|parmesan|cheddar|feta|raclette|gruyere|gouda|roquefort|cantal/)) return "🧀";
+  if (has(/\blait\b|creme fraiche|beurre/)) return "🥛";
+
+  // Viandes, abats & charcuterie
+  if (has(/abat|foie|rognon|tripe|\blangue\b|gesier|ris de|andouille|cervelle/)) return "🍖";
+  if (has(/poulet|dinde|volaille|caille|pintade|tender/)) return "🍗";
+  if (has(/boeuf|steak|bavette|entrecote|bifteck|veau|agneau|mouton|\bporc\b|jambon|lardon|saucisse|merguez|chorizo|salami|bacon|magret|canard|gigot|escalope|viande|hache/)) return "🥩";
+
+  // Poissons & fruits de mer
+  if (has(/saumon|thon|cabillaud|colin|merlu|truite|maquereau|sardine|hareng|\bsole\b|lieu|dorade|anchois|poisson|surimi|morue/)) return "🐟";
+  if (has(/crevette|gambas|crabe|homard|langoustine|moule|huitre|coquille|calamar|poulpe|seiche|fruits de mer/)) return "🦐";
+  if (has(/sushi|maki|sashimi/)) return "🍣";
+
+  // Plats & féculents
+  if (has(/pizza/)) return "🍕";
+  if (has(/burger|hamburger/)) return "🍔";
+  if (has(/sandwich|wrap|kebab|panini|hot ?dog/)) return "🥪";
+  if (has(/pates|spaghetti|penne|tagliatelle|lasagne|raviol|macaroni|coquillette|nouille/)) return "🍝";
+  if (has(/\briz\b|risotto|paella/)) return "🍚";
+  if (has(/frite|pomme de terre|patate|puree/)) return "🍟";
+  if (has(/\bpain\b|baguette|brioche|biscotte|pita|tortilla/)) return "🍞";
+  if (has(/cereale|avoine|muesli|granola|flocon|boulgour|semoule|quinoa|couscous/)) return "🥣";
+
+  // Fruits
+  if (has(/banane/)) return "🍌";
+  if (has(/pomme(?! de terre)/)) return "🍎";
+  if (has(/poire/)) return "🍐";
+  if (has(/orange|clementine|mandarine/)) return "🍊";
+  if (has(/\blime\b|citron/)) return "🍋";
+  if (has(/kiwi/)) return "🥝";
+  if (has(/fraise/)) return "🍓";
+  if (has(/framboise|myrtille|\bmure\b|cassis|groseille|fruits rouges/)) return "🫐";
+  if (has(/raisin/)) return "🍇";
+  if (has(/pasteque/)) return "🍉";
+  if (has(/melon/)) return "🍈";
+  if (has(/ananas/)) return "🍍";
+  if (has(/mangue/)) return "🥭";
+  if (has(/cerise/)) return "🍒";
+  if (has(/peche|abricot|nectarine|brugnon/)) return "🍑";
+  if (has(/avocat/)) return "🥑";
+
+  // Légumes
+  if (has(/tomate/)) return "🍅";
+  if (has(/carotte/)) return "🥕";
+  if (has(/\bmais\b/)) return "🌽";
+  if (has(/champignon|cepe|girolle/)) return "🍄";
+  if (has(/brocoli|\bchou\b|salade|laitue|epinard|courgette|poireau|haricot vert|poivron|aubergine|concombre|courge|navet|fenouil|asperge|artichaut|legume/)) return "🥦";
+  if (has(/oignon|echalote/)) return "🧅";
+  if (has(/lentille|pois chiche|haricot|\bfeve\b|legumineuse|flageolet|\bpois\b/)) return "🫘";
+
+  // Noix, huiles, sucré & boissons
+  if (has(/noix|amande|noisette|cajou|pistache|cacahuete|pignon/)) return "🥜";
+  if (has(/huile|\bolive/)) return "🫒";
+  if (has(/chocolat|cacao/)) return "🍫";
+  if (has(/glace|sorbet|creme glacee/)) return "🍨";
+  if (has(/gateau|\bcake\b|tarte|patisserie|crepe|gaufre|\bflan\b|mousse/)) return "🍰";
+  if (has(/oreo|biscuit|cookie|sable|madeleine|barre/)) return "🍪";
+  if (has(/bonbon|confiserie|nougat|caramel/)) return "🍬";
+  if (has(/miel|confiture|sirop/)) return "🍯";
+  if (has(/cafe|expresso|espresso/)) return "☕";
+  if (has(/\bthe\b|infusion|tisane/)) return "🍵";
+  if (has(/\bjus\b|smoothie|nectar/)) return "🧃";
+  if (has(/soda|cola|limonade/)) return "🥤";
+  if (has(/\beau\b|water/)) return "💧";
+  if (has(/\bvin\b|champagne|rhum|whisky|cognac|vodka|aperitif/)) return "🍷";
+  if (has(/biere|cidre/)) return "🍺";
+
+  // Repli par rayon
+  const c = deaccent(food.category);
+  if (/fruit|legume/.test(c)) return "🥗";
+  if (/viande|poisson|proteine/.test(c)) return "🍖";
+  if (/laitier|cremerie/.test(c)) return "🥛";
+  if (/cereale|pain/.test(c)) return "🍞";
+  if (/complement/.test(c)) return "💊";
+  if (/boisson/.test(c)) return "🥤";
   return "🍽️";
 }
 function ProductResults({ foods, selectedId, onSelect }: { foods: Food[]; selectedId: string; onSelect: (id: string) => void }) {
