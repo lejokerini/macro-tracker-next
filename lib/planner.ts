@@ -76,7 +76,7 @@ export function scoreProgram(program: ProgramMeal[], recipes: Recipe[], targets:
   const variety = new Set(program.map(p=>p.recipeId)).size;
   if(variety < 6) score -= 10;
   const notes = [`Coût estimé ${cost.toFixed(2)} € / budget ${weeklyBudget} €`, `Moyenne/jour : ${Math.round(avg.kcal)} kcal, P ${Math.round(avg.protein)}g`, `Variété : ${variety} recettes différentes`];
-  return { score: Math.max(0, Math.round(score)), cost, notes };
+  return { score: Math.max(0, Math.round(score)), cost, notes, avgProtein: Math.round(avg.protein), avgKcal: Math.round(avg.kcal) };
 }
 
 function packageBaseGrams(food: NonNullable<ReturnType<typeof findFood>>) {

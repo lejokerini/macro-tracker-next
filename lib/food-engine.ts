@@ -360,6 +360,12 @@ export const foods: Food[] = [...supplementFoods, ...brandedFoods, ...ciqualFood
 export const foodById = new Map(foods.map(f => [f.id, f]));
 export function findFood(id: string) { return foodById.get(id); }
 
+// Index de recherche pré-calculé une seule fois (évite de re-normaliser 3 700+ aliments à chaque frappe).
+const foodSearchIndex = foods.map(f => ({
+  f,
+  text: normalizeFoodText(`${f.name} ${f.category} ${f.ciqualCode || ""} ${f.brand || ""} ${(f.aliases || []).join(" ")}`),
+}));
+
 function relevanceScore(food: Food, q: string) {
   if (!q) return food.source === "ciqual" ? 0 : 5;
   const name = normalizeFoodText(food.name);
@@ -379,14 +385,14 @@ function relevanceScore(food: Food, q: string) {
 
 export function searchFoods(query: string, opts?: { category?: string; diet?: DietType; excludeAllergens?: string[] }) {
   const q = normalizeFoodText(query.trim());
-  return foods
-    .filter(f => {
-      const text = normalizeFoodText(`${f.name} ${f.category} ${f.ciqualCode || ""} ${f.brand || ""} ${(f.aliases || []).join(" ")}`);
+  return foodSearchIndex
+    .filter(({ f, text }) => {
       if (q && !text.includes(q)) return false;
       if (opts?.category && opts.category !== "all" && f.category !== opts.category) return false;
       if (opts?.diet && !f.diets.includes(opts.diet)) return false;
       if (opts?.excludeAllergens?.some(a => f.allergens.includes(a))) return false;
       return true;
     })
+    .map(x => x.f)
     .sort((a, b) => relevanceScore(a, q) - relevanceScore(b, q) || a.name.localeCompare(b.name, "fr"));
 }
