@@ -10,6 +10,7 @@ import { createBrowserSupabaseClient } from "@/lib/supabase";
 import { searchOpenFoodFacts } from "@/lib/openfoodfacts";
 import SnapModal from "@/components/SnapModal";
 import BarcodeScanModal from "@/components/BarcodeScanModal";
+import BodyFatModal from "@/components/BodyFatModal";
 import { buildScannedFood, type EditableScanItem } from "@/lib/calsnap";
 import { CIQUAL_FOOD_COUNT } from "@/data/ciqual-foods.generated";
 import type { DietType, Food, MealLogItem, MealType, PantryItem, Profile, ProgramMeal, Recipe, Store, WeightLog } from "@/lib/types";
@@ -28,6 +29,9 @@ function hasUserData(state: State) {
 }
 function stateForCloud(state: State) {
   return { ...state, recipes: state.recipes?.length ? state.recipes : seedRecipes };
+}
+function migrateGoals(profiles: Profile[] = []): Profile[] {
+  return profiles.map(p => ((p as unknown as { goal: string }).goal === "lean_bulk" ? { ...p, goal: "prise_masse" } : p));
 }
 
 const MICRO_LABELS: Record<MicroKey, { label: string; unit: string; group: "Vitamines" | "Minéraux" | "Autres" }> = {
@@ -55,6 +59,10 @@ const MICRO_ORDER = Object.keys(MICRO_LABELS) as MicroKey[];
 function uid(prefix="id") { return `${prefix}_${crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2)}`; }
 function today() { return new Date().toISOString().slice(0,10); }
 function cleanNumber(value: number) { return Math.abs(value) >= 10 ? Math.round(value) : Math.round(value * 100) / 100; }
+function frNum(v: FormDataEntryValue | string | null | undefined, fallback: number) {
+  const x = Number(String(v ?? "").replace(",", ".").trim());
+  return Number.isFinite(x) ? x : fallback;
+}
 
 function macrosFromBaseGrams(food: Food | undefined, baseGrams: number) {
   const ratio = Math.max(0, Number.isFinite(baseGrams) ? baseGrams : 0) / 100;
@@ -130,6 +138,8 @@ export default function MacroTrackerApp() {
   const [barcodeOpen, setBarcodeOpen] = useState(false);
   const [theme, setTheme] = useState<"light" | "dark">("light");
   const [menuOpen, setMenuOpen] = useState(false);
+  const [bodyFat, setBodyFat] = useState("");
+  const [bfModalOpen, setBfModalOpen] = useState(false);
   const supabase = useMemo(() => createBrowserSupabaseClient(), []);
   const [session, setSession] = useState<Session | null>(null);
   const [authEmail, setAuthEmail] = useState("");
@@ -173,7 +183,8 @@ export default function MacroTrackerApp() {
     if(raw) {
       try {
         const parsed = JSON.parse(raw);
-        setState({ ...emptyState, ...parsed, recipes: parsed.recipes?.length ? parsed.recipes : seedRecipes });
+        const merged = { ...emptyState, ...parsed, recipes: parsed.recipes?.length ? parsed.recipes : seedRecipes };
+        setState({ ...merged, profiles: migrateGoals(merged.profiles) });
       } catch {}
     }
     const rawAutoSync = localStorage.getItem(`${STORAGE_KEY}:autoSync`);
@@ -269,8 +280,8 @@ export default function MacroTrackerApp() {
     const profileId = String(form.get("profileId") || "");
     const profile: Profile = {
       id: profileId || uid("profile"), firstName: String(form.get("firstName") || "Antoine"), lastName: String(form.get("lastName") || "Dupont"),
-      sex: form.get("sex") as Profile["sex"], age: Number(form.get("age") || 25), heightCm: Number(form.get("heightCm") || 175), weightKg: Number(form.get("weightKg") || 70),
-      bodyFatPct: Number(form.get("bodyFatPct") || 0) || undefined, activity: Number(form.get("activity") || 1.55), goal: form.get("goal") as Profile["goal"], diet: form.get("diet") as DietType,
+      sex: form.get("sex") as Profile["sex"], age: Number(form.get("age") || 25), heightCm: Number(form.get("heightCm") || 175), weightKg: frNum(form.get("weightKg"), 70),
+      bodyFatPct: frNum(form.get("bodyFatPct"), 0) || undefined, activity: Number(form.get("activity") || 1.55), goal: form.get("goal") as Profile["goal"], proteinPerKg: frNum(form.get("proteinPerKg"), 0) || undefined, diet: form.get("diet") as DietType,
       weeklyBudget: Number(form.get("weeklyBudget") || 75), store: form.get("store") as Store, allergies: ALLERGENS.filter(a => form.get(`allergy_${a}`)),
       dislikedFoods: String(form.get("dislikedFoods") || "").split(",").map(x=>x.trim()).filter(Boolean), likedFoods: String(form.get("likedFoods") || "").split(",").map(x=>x.trim()).filter(Boolean),
       trainingDays: [1,2,3,4,5,6,0].filter(d => form.get(`day_${d}`)), maxPrepTime: Number(form.get("maxPrepTime") || 30), cookingLevel: form.get("cookingLevel") as Profile["cookingLevel"],
@@ -392,7 +403,7 @@ export default function MacroTrackerApp() {
     if (!data?.data) { setSyncStatus("Aucune sauvegarde cloud trouvée pour ce compte."); setCloudHydrated(true); return; }
     const next = data.data as State;
     suppressNextAutoSave.current = true;
-    setState({ ...emptyState, ...next, recipes: next.recipes?.length ? next.recipes : seedRecipes });
+    setState({ ...emptyState, ...next, profiles: migrateGoals(next.profiles), recipes: next.recipes?.length ? next.recipes : seedRecipes });
     setLastCloudSaveAt(data.updated_at || "");
     setCloudHydrated(true);
     setSyncStatus(`Sauvegarde cloud chargée${data.updated_at ? ` (${new Date(data.updated_at).toLocaleString("fr-FR")})` : ""}.`);
@@ -410,6 +421,7 @@ export default function MacroTrackerApp() {
     return () => { if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current); };
   }, [state, autoSync, session?.user?.id, supabase]);
   useEffect(() => { setTheme(((document.documentElement.dataset.theme as "light" | "dark") || "light")); }, []);
+  useEffect(() => { setBodyFat(activeProfile?.bodyFatPct ? String(activeProfile.bodyFatPct) : ""); }, [activeProfile?.id]);
   function toggleTheme() {
     setTheme(prev => {
       const next = prev === "dark" ? "light" : "dark";
@@ -442,20 +454,21 @@ export default function MacroTrackerApp() {
     {tab === "dashboard" && <section className="grid">
       {!activeProfile && <div className="span-12 notice">Commence par créer un profil. L'app ne crée aucun profil par défaut.</div>}
       <div className="card span-4 chart-card"><h3>Calories du jour</h3><ProgressRing value={totals.kcal} max={targets?.kcal || 0} color="var(--primary-2)" top={`${totals.kcal}`} bottom={targets ? `/ ${targets.kcal}` : "kcal"} /><span className="chart-foot">{targets ? `${Math.max(0, targets.kcal - totals.kcal)} kcal restantes` : "Crée un profil pour ta cible"}</span></div>
-      <div className="card span-4 chart-card"><h3>Macros</h3><MacroPie protein={totals.protein} carbs={totals.carbs} fat={totals.fat} /><div className="macro-legend"><span><i className="legend-dot" style={{background:"#2f6b2f"}} />P {totals.protein}g</span><span><i className="legend-dot" style={{background:"#f3a52c"}} />G {totals.carbs}g</span><span><i className="legend-dot" style={{background:"#8a6bd1"}} />L {totals.fat}g</span></div></div>
+      <div className="card span-4 chart-card"><h3>Macros</h3><MacroPie protein={totals.protein} carbs={totals.carbs} fat={totals.fat} /><div className="macro-legend"><span><i className="legend-dot" style={{background:"#2f6b2f"}} />P {totals.protein}g</span><span><i className="legend-dot" style={{background:"#f3a52c"}} />G {totals.carbs}g</span><span><i className="legend-dot" style={{background:"#8a6bd1"}} />L {totals.fat}g</span></div><span className="chart-foot">🌾 Fibres {totals.fiber}{targets ? ` / ${targets.fiber}` : ""} g</span></div>
       <div className="card span-4 chart-card"><h3>💧 Hydratation</h3><ProgressRing value={(state.water||{})[date]||0} max={waterGoal} color="#3b9bd6" top={`${(state.water||{})[date]||0}`} bottom={`/ ${waterGoal} ml`} /><div className="row water-btns"><button className="btn secondary" onClick={()=>addWater(100)}>+10cl</button><button className="btn secondary" onClick={()=>addWater(150)}>+15cl</button><button className="btn secondary" onClick={()=>addWater(250)}>+25cl</button><button className="btn secondary" onClick={()=>addWater(500)}>+50cl</button><button className="btn secondary" onClick={()=>addWater(-100)} disabled={!((state.water||{})[date])}>−10cl</button></div></div>
       <div className="card span-12"><h2>Actions rapides</h2><div className="row"><button className="btn" onClick={()=>setSnapOpen(true)}>📸 Snap mon repas</button><button className="btn" onClick={()=>setBarcodeOpen(true)}>🏷️ Scanner un code-barres</button><button className="btn" disabled={!activeProfile} onClick={generate}>Générer 7 jours</button><button className="btn secondary" onClick={()=>setTab("journal")}>Ajouter un aliment</button><button className="btn secondary" onClick={()=>setTab("recettes")}>Cuisiner une recette</button><button className="btn secondary" onClick={()=>setTab("courses")}>Voir courses</button></div></div>
+      <div className="card span-12"><MicroPanel title="Vitamines & minéraux du jour" micros={microsToday}/></div>
     </section>}
 
     {tab === "profil" && <section className="grid">
       <div className="card span-8">
         <div className="space"><div><h2>{activeProfile ? "Modifier le profil actif" : "Créer un profil"}</h2><p className="muted">Renseigne ton objectif, ton activité, ton budget et tes contraintes. Les calories et macros sont recalculées automatiquement.</p></div>{activeProfile && <button className="btn secondary" onClick={()=>setState(s=>({...s,activeProfileId:undefined}))}>Nouveau profil</button>}</div>
-        {activeProfile && targets && <div className="target-panel"><div><span>Kcal/j</span><strong>{targets.kcal}</strong></div><div><span>Protéines</span><strong>{targets.protein}g</strong></div><div><span>Glucides</span><strong>{targets.carbs}g</strong></div><div><span>Lipides</span><strong>{targets.fat}g</strong></div></div>}
+        {activeProfile && targets && <div className="target-panel"><div><span>Kcal/j</span><strong>{targets.kcal}</strong></div><div><span>Protéines</span><strong>{targets.protein}g</strong></div><div><span>Glucides</span><strong>{targets.carbs}g</strong></div><div><span>Lipides</span><strong>{targets.fat}g</strong></div><div><span>Fibres</span><strong>{targets.fiber}g</strong></div></div>}
         <form action={saveProfile} className="grid" key={activeProfile?.id || "new-profile"}>
       <input type="hidden" name="profileId" value={activeProfile?.id || ""}/>
       <div className="span-6"><label>Prénom</label><input name="firstName" placeholder="Antoine" defaultValue={activeProfile?.firstName || ""} /></div><div className="span-6"><label>Nom</label><input name="lastName" placeholder="Dupont" defaultValue={activeProfile?.lastName || ""} /></div>
-      <div className="span-3"><label>Sexe</label><select name="sex" defaultValue={activeProfile?.sex || "homme"}><option value="homme">Homme</option><option value="femme">Femme</option></select></div><div className="span-3"><label>Âge</label><input name="age" type="number" defaultValue={activeProfile?.age || 25}/></div><div className="span-3"><label>Taille cm</label><input name="heightCm" type="number" defaultValue={activeProfile?.heightCm || 175}/></div><div className="span-3"><label>Poids kg</label><input name="weightKg" type="number" step="0.1" defaultValue={activeProfile?.weightKg || 70}/></div>
-      <div className="span-3"><label>Masse grasse %</label><input name="bodyFatPct" type="number" placeholder="optionnel" defaultValue={activeProfile?.bodyFatPct || ""}/></div><div className="span-3"><label>Activité</label><select name="activity" defaultValue={String(activeProfile?.activity || 1.55)}><option value="1.2">Sédentaire</option><option value="1.375">Léger</option><option value="1.55">Modéré</option><option value="1.725">Élevé</option><option value="1.9">Très élevé</option></select></div><div className="span-3"><label>Objectif</label><select name="goal" defaultValue={activeProfile?.goal || "lean_bulk"}><option value="perte">Perte</option><option value="maintien">Maintien</option><option value="prise_masse">Prise masse</option><option value="lean_bulk">Lean bulk</option></select></div><div className="span-3"><label>Régime</label><select name="diet" defaultValue={activeProfile?.diet || "omnivore"}><option value="omnivore">Omnivore</option><option value="flexitarien">Flexitarien</option><option value="pescetarien">Pescetarien</option><option value="vegetarien">Végétarien</option><option value="vegan">Vegan</option><option value="sans_porc">Sans porc</option></select></div>
+      <div className="span-3"><label>Sexe</label><select name="sex" defaultValue={activeProfile?.sex || "homme"}><option value="homme">Homme</option><option value="femme">Femme</option></select></div><div className="span-3"><label>Âge</label><input name="age" type="number" defaultValue={activeProfile?.age || 25}/></div><div className="span-3"><label>Taille cm</label><input name="heightCm" type="number" defaultValue={activeProfile?.heightCm || 175}/></div><div className="span-3"><label>Poids kg</label><input name="weightKg" type="text" inputMode="decimal" placeholder="ex. 65,45" defaultValue={activeProfile?.weightKg ?? 70}/></div>
+      <div className="span-3"><label>Masse grasse %</label><div className="bf-row"><input name="bodyFatPct" type="text" inputMode="decimal" placeholder="optionnel" value={bodyFat} onChange={e=>setBodyFat(e.target.value)}/><button type="button" className="btn secondary bf-estimate" onClick={()=>setBfModalOpen(true)}>Estimer</button></div></div><div className="span-3"><label>Activité</label><select name="activity" defaultValue={String(activeProfile?.activity || 1.55)}><option value="1.2">Sédentaire</option><option value="1.375">Léger</option><option value="1.55">Modéré</option><option value="1.725">Élevé</option><option value="1.9">Très élevé</option></select></div><div className="span-3"><label>Objectif</label><select name="goal" defaultValue={activeProfile?.goal || "maintien"}><option value="perte">Sèche</option><option value="maintien">Maintien</option><option value="prise_masse">Prise de masse</option></select></div><div className="span-3"><label>Protéines (g/kg)</label><select name="proteinPerKg" defaultValue={activeProfile?.proteinPerKg ? String(activeProfile.proteinPerKg) : ""}><option value="">Auto (selon objectif)</option><option value="1.6">1,6 g/kg</option><option value="1.8">1,8 g/kg</option><option value="2.0">2,0 g/kg</option><option value="2.2">2,2 g/kg</option><option value="2.4">2,4 g/kg</option><option value="2.6">2,6 g/kg</option></select></div><div className="span-12"><p className="form-help">Protéines par kg de poids de corps. Repère : <strong>1,6 g/kg</strong> = minimum pour progresser ; <strong>1,8–2,2 g/kg</strong> = zone optimale (maintien / prise de masse) ; <strong>2,2–2,6 g/kg</strong> = conseillé en sèche pour préserver le muscle pendant le déficit calorique. Au-delà, peu de bénéfice prouvé. « Auto » choisit selon ton objectif (et ta masse maigre si renseignée).</p></div><div className="span-3"><label>Régime</label><select name="diet" defaultValue={activeProfile?.diet || "omnivore"}><option value="omnivore">Omnivore</option><option value="flexitarien">Flexitarien</option><option value="pescetarien">Pescetarien</option><option value="vegetarien">Végétarien</option><option value="vegan">Vegan</option><option value="sans_porc">Sans porc</option></select></div>
       <div className="span-3"><label>Budget/semaine</label><select name="weeklyBudget" defaultValue={String(activeProfile?.weeklyBudget || 75)}><option>50</option><option>75</option><option>100</option><option>150</option><option>200</option></select></div><div className="span-3"><label>Enseigne</label><select name="store" defaultValue={activeProfile?.store || "leclerc"}>{Object.entries(STORES).map(([k,v])=><option key={k} value={k}>{v.label}</option>)}</select></div><div className="span-3"><label>Temps max repas</label><input name="maxPrepTime" type="number" defaultValue={activeProfile?.maxPrepTime || 30}/></div><div className="span-3"><label>Niveau cuisine</label><select name="cookingLevel" defaultValue={activeProfile?.cookingLevel || "normal"}><option value="etudiant">Étudiant</option><option value="normal">Normal</option><option value="meal_prep">Meal prep</option><option value="famille">Famille</option></select></div>
       <div className="span-6"><label>Aliments aimés, séparés par virgules</label><input name="likedFoods" placeholder="riz, poulet, skyr" defaultValue={activeProfile?.likedFoods.join(", ") || ""}/></div><div className="span-6"><label>Aliments à éviter</label><input name="dislikedFoods" placeholder="thon, fromage, etc." defaultValue={activeProfile?.dislikedFoods.join(", ") || ""}/></div>
       <div className="span-12"><label>Allergies / exclusions</label><div className="row">{ALLERGENS.map(a=><label key={a} className="tag"><input type="checkbox" name={`allergy_${a}`} defaultChecked={!!activeProfile?.allergies.includes(a)} style={{width:"auto"}}/> {a}</label>)}</div></div>
@@ -481,7 +494,7 @@ export default function MacroTrackerApp() {
 
     {tab === "placard" && <section className="grid"><div className="card span-4"><h2>Ajouter au placard</h2><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Rechercher"/><select value={selectedFood} disabled={!foodOptions.length} onChange={e=>setSelectedFood(e.target.value)}>{!foodOptions.length ? <option value="">Aucun aliment trouvé</option> : foodOptions.map(f=><option key={f.id} value={f.id}>{f.name}</option>)}</select>{!foodOptions.length && <p className="form-help bad-text">Aucun aliment trouvé pour ce filtre.</p>}<QuantityPicker value={qty} onChange={setQty} food={selectedFoodObj}/><button className="btn" disabled={!selectedFood || !foodOptions.length || qty <= 0} onClick={()=>addPantry(selectedFood, qty)}>Ajouter</button></div><div className="card span-8"><h2>Placard / frigo</h2><div className="list">{state.pantry.map(p=>{const f=findFoodAny(p.foodId); return <div className="item space" key={p.id}><span>{f?.name} · {formatQuantity(f, p.qty, p.displayQty, p.displayUnit)}</span><button className="btn danger" onClick={()=>setState(s=>({...s,pantry:s.pantry.filter(x=>x.id!==p.id)}))}>Retirer</button></div>})}</div></div></section>}
 
-    {tab === "poids" && <section className="grid"><div className="card span-4"><h2>Pesée à jeun</h2><input type="number" step="0.1" placeholder="Poids du matin" onKeyDown={e=>{if(e.key==='Enter') addWeight(Number((e.target as HTMLInputElement).value))}}/><button className="btn" onClick={()=>{const v=prompt("Poids à jeun ?"); if(v) addWeight(Number(v));}}>Ajouter pesée</button></div><div className="card span-8"><h2>Suivi du poids</h2><p>Moyenne 7 jours : <strong>{average7(state.weights) ?? "—"} kg</strong></p><p className="notice">{activeProfile ? weightTrendRecommendation(activeProfile, state.weights) : "Crée un profil pour obtenir une recommandation."}</p><WeightChart weights={state.weights}/><div className="list">{state.weights.slice(-10).reverse().map(w=><div className="item" key={w.id}>{w.date} · {w.weightKg} kg · <span className="muted">{w.note}</span></div>)}</div></div></section>}
+    {tab === "poids" && <section className="grid"><div className="card span-4"><h2>Pesée à jeun</h2><input type="text" inputMode="decimal" placeholder="Poids du matin (ex. 65,45)" onKeyDown={e=>{if(e.key==='Enter'){const w=frNum((e.target as HTMLInputElement).value,0); if(w>0) addWeight(w);}}}/><button className="btn" onClick={()=>{const w=frNum(prompt("Poids à jeun ?"),0); if(w>0) addWeight(w);}}>Ajouter pesée</button></div><div className="card span-8"><h2>Suivi du poids</h2><p>Moyenne 7 jours : <strong>{average7(state.weights) ?? "—"} kg</strong></p><p className="notice">{activeProfile ? weightTrendRecommendation(activeProfile, state.weights) : "Crée un profil pour obtenir une recommandation."}</p><WeightChart weights={state.weights}/><div className="list">{state.weights.slice(-10).reverse().map(w=><div className="item" key={w.id}>{w.date} · {w.weightKg} kg · <span className="muted">{w.note}</span></div>)}</div></div></section>}
 
     {tab === "sauvegarde" && <section className="grid">
       <div className="card span-6"><h2>Mon compte & cloud</h2><p className="muted">Gère ta connexion, l’auto-sauvegarde cloud et la synchronisation de tes données entre appareils.</p>{!supabase && <div className="notice">Supabase n'est pas encore configuré. Ajoute les variables <strong>NEXT_PUBLIC_SUPABASE_URL</strong> et <strong>NEXT_PUBLIC_SUPABASE_ANON_KEY</strong>.</div>}{session?.user ? <div className="cloud-box"><strong>Connecté</strong><p className="muted">{session.user.email}</p><div className="cloud-status"><span>{autoSync ? "Auto-sauvegarde activée" : "Auto-sauvegarde désactivée"}</span><strong>{lastCloudSaveAt ? `Dernière sauvegarde : ${new Date(lastCloudSaveAt).toLocaleString("fr-FR")}` : "Pas encore sauvegardé"}</strong></div><label className="toggle-line"><input type="checkbox" checked={autoSync} onChange={e=>setAutoSync(e.target.checked)} style={{width:"auto"}}/> Auto-sauvegarder après chaque modification</label><div className="row"><button className="btn" onClick={saveCloud}>Sauvegarder maintenant</button><button className="btn secondary" onClick={loadCloud}>Charger depuis le cloud</button><button className="btn danger" onClick={signOut}>Déconnexion</button></div></div> : <div className="cloud-box"><label>Email</label><input value={authEmail} onChange={e=>setAuthEmail(e.target.value)} placeholder="ton@email.com"/><label>Mot de passe</label><input type="password" value={authPassword} onChange={e=>setAuthPassword(e.target.value)} placeholder="8 caractères minimum"/><div className="row"><button className="btn" onClick={signIn} disabled={!supabase || !authEmail || authPassword.length < 6}>Se connecter</button><button className="btn secondary" onClick={signUp} disabled={!supabase || !authEmail || authPassword.length < 6}>Créer un compte</button></div></div>}{authMessage && <p className="notice">{authMessage}</p>}{syncStatus && <p className="notice">{syncStatus}</p>}</div>
@@ -491,6 +504,7 @@ export default function MacroTrackerApp() {
 
     <SnapModal open={snapOpen} onClose={()=>setSnapOpen(false)} onConfirm={addScannedItems} defaultMeal={selectedMeal} date={date} />
     <BarcodeScanModal open={barcodeOpen} onClose={()=>setBarcodeOpen(false)} onConfirm={addBarcodeFood} defaultMeal={selectedMeal} date={date} />
+    <BodyFatModal open={bfModalOpen} onClose={()=>setBfModalOpen(false)} onApply={(v)=>{ setBodyFat(String(v)); setBfModalOpen(false); }} defaultSex={activeProfile?.sex || "homme"} defaultHeight={activeProfile?.heightCm} />
 
     <nav className="bottom-nav">
       <button className={`bn-item ${tab==="dashboard"?"active":""}`} onClick={()=>setTab("dashboard")}><span className="bn-ico">🏠</span>Accueil</button>

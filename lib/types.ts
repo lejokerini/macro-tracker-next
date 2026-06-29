@@ -1,5 +1,5 @@
 export type DietType = "omnivore" | "flexitarien" | "pescetarien" | "vegetarien" | "vegan" | "sans_porc";
-export type GoalType = "perte" | "maintien" | "prise_masse" | "lean_bulk";
+export type GoalType = "perte" | "maintien" | "prise_masse";
 export type Store = "leclerc" | "intermarche" | "carrefour" | "auchan" | "lidl" | "aldi" | "monoprix";
 export type MealType = "Petit-déjeuner" | "Déjeuner" | "Dîner" | "Collation";
 
@@ -44,6 +44,7 @@ export type Profile = {
   bodyFatPct?: number;
   activity: number;
   goal: GoalType;
+  proteinPerKg?: number;
   diet: DietType;
   weeklyBudget: number;
   store: Store;
@@ -55,7 +56,7 @@ export type Profile = {
   cookingLevel: "etudiant" | "normal" | "meal_prep" | "famille";
 };
 
-export type Targets = { kcal: number; protein: number; carbs: number; fat: number };
+export type Targets = { kcal: number; protein: number; carbs: number; fat: number; fiber: number };
 export type MealLogItem = { id: string; foodId: string; qty: number; meal: MealType; date: string; displayQty?: number; displayUnit?: "g" | "ml" | "piece" };
 export type PantryItem = { id: string; foodId: string; qty: number; unit: "g" | "ml" | "piece"; displayQty?: number; displayUnit?: "g" | "ml" | "piece"; expiresAt?: string };
 export type WeightLog = { id: string; date: string; weightKg: number; note?: string };

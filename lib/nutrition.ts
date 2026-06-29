@@ -2,18 +2,36 @@ import { findFood } from "@/lib/food-engine";
 import type { MealLogItem, Profile, Recipe, RecipeIngredient, Targets, WeightLog } from "@/lib/types";
 
 export function calculateTargets(profile: Profile): Targets {
-  const bmr = profile.sex === "homme"
-    ? 10 * profile.weightKg + 6.25 * profile.heightCm - 5 * profile.age + 5
-    : 10 * profile.weightKg + 6.25 * profile.heightCm - 5 * profile.age - 161;
+  // Masse maigre (LBM) si la masse grasse est renseignée et plausible.
+  const bf = profile.bodyFatPct && profile.bodyFatPct > 3 && profile.bodyFatPct < 60 ? profile.bodyFatPct : undefined;
+  const lbm = bf ? profile.weightKg * (1 - bf / 100) : undefined;
+
+  // BMR : Katch-McArdle si LBM connue (plus précis), sinon Mifflin-St Jeor.
+  const bmr = lbm
+    ? 370 + 21.6 * lbm
+    : profile.sex === "homme"
+      ? 10 * profile.weightKg + 6.25 * profile.heightCm - 5 * profile.age + 5
+      : 10 * profile.weightKg + 6.25 * profile.heightCm - 5 * profile.age - 161;
+
   let kcal = bmr * profile.activity;
   if (profile.goal === "perte") kcal -= 400;
   if (profile.goal === "prise_masse") kcal += 350;
-  if (profile.goal === "lean_bulk") kcal += 180;
   kcal = Math.round(kcal / 10) * 10;
-  const protein = Math.round(profile.weightKg * (profile.goal === "perte" ? 2.0 : 1.8));
-  const fat = Math.round(profile.weightKg * 0.9);
+
+  // Protéines et lipides calés sur la masse maigre si connue, sinon le poids.
+  // Les lipides ne gonflent PAS en prise de masse : le surplus va aux glucides (carburant).
+  const lossPhase = profile.goal === "perte";
+  const ref = lbm ?? profile.weightKg;
+  // Protéines : choix de l'utilisateur (g/kg de poids de corps) sinon défaut selon objectif.
+  const defaultProteinPerKg = lbm ? (lossPhase ? 2.4 : 2.2) : (lossPhase ? 2.0 : 1.8);
+  const fatPerKg = lbm ? 1.0 : 0.9;
+  const protein = profile.proteinPerKg && profile.proteinPerKg > 0
+    ? Math.round(profile.weightKg * profile.proteinPerKg)
+    : Math.round(ref * defaultProteinPerKg);
+  const fat = Math.round(Math.max(profile.weightKg * 0.6, ref * fatPerKg)); // plancher hormonal 0,6 g/kg
   const carbs = Math.max(0, Math.round((kcal - protein * 4 - fat * 9) / 4));
-  return { kcal, protein, carbs, fat };
+  const fiber = Math.round((kcal / 1000) * 14); // 14 g / 1000 kcal (reco standard)
+  return { kcal, protein, carbs, fat, fiber };
 }
 
 export function sumIngredients(items: RecipeIngredient[] | { foodId:string; qty:number }[]) {
@@ -39,7 +57,7 @@ export function weightTrendRecommendation(profile: Profile, weights: WeightLog[]
     if(delta < -0.8) return `Tendance ${delta} kg/semaine : perte rapide, envisage +100 kcal/j.`;
     return `Tendance ${delta} kg/semaine : rythme de perte correct.`;
   }
-  if(profile.goal === "prise_masse" || profile.goal === "lean_bulk") {
+  if(profile.goal === "prise_masse") {
     if(delta < 0.1) return `Tendance ${delta} kg/semaine : prise trop lente, envisage +100 à +150 kcal/j.`;
     if(delta > 0.5) return `Tendance ${delta} kg/semaine : prise rapide, baisse légèrement les calories.`;
     return `Tendance ${delta} kg/semaine : prise de masse maîtrisée.`;
