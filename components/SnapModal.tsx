@@ -65,11 +65,37 @@ export default function SnapModal({
   const [description, setDescription] = useState("");
   const [hint, setHint] = useState("");
   const [correcting, setCorrecting] = useState(false);
+  const [listening, setListening] = useState(false);
   const lastFile = useRef<File | null>(null);
   const cameraRef = useRef<HTMLInputElement>(null);
   const libraryRef = useRef<HTMLInputElement>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const recognitionRef = useRef<any>(null);
+  const speechSupported = typeof window !== "undefined" && ("SpeechRecognition" in window || "webkitSpeechRecognition" in window);
 
   if (!open) return null;
+
+  function toggleDictation() {
+    if (listening) { recognitionRef.current?.stop?.(); return; }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const SR: any = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SR) return;
+    const rec = new SR();
+    rec.lang = "fr-FR";
+    rec.continuous = false;
+    rec.interimResults = false;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    rec.onresult = (e: any) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const transcript = Array.from(e.results as ArrayLike<any>).map((r) => r[0].transcript).join(" ");
+      setDescription((prev) => (prev ? `${prev} ${transcript}` : transcript));
+    };
+    rec.onend = () => setListening(false);
+    rec.onerror = () => setListening(false);
+    recognitionRef.current = rec;
+    setListening(true);
+    rec.start();
+  }
 
   function reset() {
     setPreview("");
@@ -80,6 +106,8 @@ export default function SnapModal({
     setDescription("");
     setHint("");
     setCorrecting(false);
+    setListening(false);
+    recognitionRef.current?.stop?.();
     lastFile.current = null;
   }
   function close() {
@@ -179,7 +207,10 @@ export default function SnapModal({
             <div className="snap-describe">
               <label>Ou décris ton repas</label>
               <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="ex. 2 œufs, 100 g de riz et une banane" rows={2} />
-              <button className="btn secondary" disabled={description.trim().length < 3} onClick={handleText}>✍️ Analyser la description</button>
+              <div className="row">
+                {speechSupported && <button type="button" className={`btn secondary ${listening ? "mic-on" : ""}`} onClick={toggleDictation}>{listening ? "🎙️ Écoute…" : "🎤 Dicter"}</button>}
+                <button className="btn secondary" disabled={description.trim().length < 3} onClick={handleText}>✍️ Analyser la description</button>
+              </div>
             </div>
           </div>
         )}
