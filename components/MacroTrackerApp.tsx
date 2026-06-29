@@ -11,6 +11,7 @@ import { searchOpenFoodFacts } from "@/lib/openfoodfacts";
 import SnapModal from "@/components/SnapModal";
 import BarcodeScanModal from "@/components/BarcodeScanModal";
 import BodyFatModal from "@/components/BodyFatModal";
+import MacroInfoModal, { type MacroKind } from "@/components/MacroInfoModal";
 import { buildScannedFood, type EditableScanItem } from "@/lib/calsnap";
 import { CIQUAL_FOOD_COUNT } from "@/data/ciqual-foods.generated";
 import type { DietType, Food, MealLogItem, MealType, PantryItem, Profile, ProgramMeal, Recipe, Store, WeightLog } from "@/lib/types";
@@ -140,6 +141,7 @@ export default function MacroTrackerApp() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [bodyFat, setBodyFat] = useState("");
   const [bfModalOpen, setBfModalOpen] = useState(false);
+  const [macroInfo, setMacroInfo] = useState<MacroKind | null>(null);
   const supabase = useMemo(() => createBrowserSupabaseClient(), []);
   const [session, setSession] = useState<Session | null>(null);
   const [authEmail, setAuthEmail] = useState("");
@@ -420,7 +422,14 @@ export default function MacroTrackerApp() {
     autoSaveTimer.current = setTimeout(() => { persistCloud("auto"); }, 1600);
     return () => { if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current); };
   }, [state, autoSync, session?.user?.id, supabase]);
-  useEffect(() => { setTheme(((document.documentElement.dataset.theme as "light" | "dark") || "light")); }, []);
+  useEffect(() => {
+    let stored: string | null = null;
+    try { stored = localStorage.getItem("calsnap-theme"); } catch {}
+    const prefersDark = typeof window !== "undefined" && window.matchMedia ? window.matchMedia("(prefers-color-scheme: dark)").matches : false;
+    const next: "light" | "dark" = stored === "dark" || stored === "light" ? stored : (prefersDark ? "dark" : "light");
+    document.documentElement.dataset.theme = next;
+    setTheme(next);
+  }, []);
   useEffect(() => { setBodyFat(activeProfile?.bodyFatPct ? String(activeProfile.bodyFatPct) : ""); }, [activeProfile?.id]);
   function toggleTheme() {
     setTheme(prev => {
@@ -454,7 +463,7 @@ export default function MacroTrackerApp() {
     {tab === "dashboard" && <section className="grid">
       {!activeProfile && <div className="span-12 notice">Commence par créer un profil. L'app ne crée aucun profil par défaut.</div>}
       <div className="card span-4 chart-card"><h3>Calories du jour</h3><ProgressRing value={totals.kcal} max={targets?.kcal || 0} color="var(--primary-2)" top={`${totals.kcal}`} bottom={targets ? `/ ${targets.kcal}` : "kcal"} /><span className="chart-foot">{targets ? `${Math.max(0, targets.kcal - totals.kcal)} kcal restantes` : "Crée un profil pour ta cible"}</span></div>
-      <div className="card span-4 chart-card"><h3>Macros</h3><MacroPie protein={totals.protein} carbs={totals.carbs} fat={totals.fat} /><div className="macro-legend"><span><i className="legend-dot" style={{background:"#2f6b2f"}} />P {totals.protein}g</span><span><i className="legend-dot" style={{background:"#f3a52c"}} />G {totals.carbs}g</span><span><i className="legend-dot" style={{background:"#8a6bd1"}} />L {totals.fat}g</span></div><span className="chart-foot">🌾 Fibres {totals.fiber}{targets ? ` / ${targets.fiber}` : ""} g</span></div>
+      <div className="card span-4 chart-card"><h3>Macros</h3><MacroPie protein={totals.protein} carbs={totals.carbs} fat={totals.fat} /><div className="macro-legend"><button type="button" onClick={()=>setMacroInfo("protein")}><i className="legend-dot" style={{background:"#2f6b2f"}} />P {totals.protein}g <span className="info-i">i</span></button><button type="button" onClick={()=>setMacroInfo("carbs")}><i className="legend-dot" style={{background:"#f3a52c"}} />G {totals.carbs}g <span className="info-i">i</span></button><button type="button" onClick={()=>setMacroInfo("fat")}><i className="legend-dot" style={{background:"#8a6bd1"}} />L {totals.fat}g <span className="info-i">i</span></button></div><span className="chart-foot">🌾 Fibres {totals.fiber}{targets ? ` / ${targets.fiber}` : ""} g</span></div>
       <div className="card span-4 chart-card"><h3>💧 Hydratation</h3><ProgressRing value={(state.water||{})[date]||0} max={waterGoal} color="#3b9bd6" top={`${(state.water||{})[date]||0}`} bottom={`/ ${waterGoal} ml`} /><div className="row water-btns"><button className="btn secondary" onClick={()=>addWater(100)}>+10cl</button><button className="btn secondary" onClick={()=>addWater(150)}>+15cl</button><button className="btn secondary" onClick={()=>addWater(250)}>+25cl</button><button className="btn secondary" onClick={()=>addWater(500)}>+50cl</button><button className="btn secondary" onClick={()=>addWater(-100)} disabled={!((state.water||{})[date])}>−10cl</button></div></div>
       <div className="card span-12"><h2>Actions rapides</h2><div className="row"><button className="btn" onClick={()=>setSnapOpen(true)}>📸 Snap mon repas</button><button className="btn" onClick={()=>setBarcodeOpen(true)}>🏷️ Scanner un code-barres</button><button className="btn" disabled={!activeProfile} onClick={generate}>Générer 7 jours</button><button className="btn secondary" onClick={()=>setTab("journal")}>Ajouter un aliment</button><button className="btn secondary" onClick={()=>setTab("recettes")}>Cuisiner une recette</button><button className="btn secondary" onClick={()=>setTab("courses")}>Voir courses</button></div></div>
       <div className="card span-12"><MicroPanel title="Vitamines & minéraux du jour" micros={microsToday}/></div>
@@ -505,6 +514,7 @@ export default function MacroTrackerApp() {
     <SnapModal open={snapOpen} onClose={()=>setSnapOpen(false)} onConfirm={addScannedItems} defaultMeal={selectedMeal} date={date} />
     <BarcodeScanModal open={barcodeOpen} onClose={()=>setBarcodeOpen(false)} onConfirm={addBarcodeFood} defaultMeal={selectedMeal} date={date} />
     <BodyFatModal open={bfModalOpen} onClose={()=>setBfModalOpen(false)} onApply={(v)=>{ setBodyFat(String(v)); setBfModalOpen(false); }} defaultSex={activeProfile?.sex || "homme"} defaultHeight={activeProfile?.heightCm} />
+    <MacroInfoModal macro={macroInfo} onClose={()=>setMacroInfo(null)} />
 
     <nav className="bottom-nav">
       <button className={`bn-item ${tab==="dashboard"?"active":""}`} onClick={()=>setTab("dashboard")}><span className="bn-ico">🏠</span>Accueil</button>

@@ -281,8 +281,16 @@ button,input,select,textarea{font:inherit}
 .ring-num{font-size:25px;font-weight:950;fill:var(--text)}
 .ring-sub{font-size:12px;font-weight:800;fill:var(--muted)}
 .chart-foot{margin-top:8px;font-size:12px;font-weight:900;color:var(--primary)}
-.macro-legend{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:10px}
-.macro-legend span{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:900;color:var(--text)}
+.macro-legend{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:10px}
+.macro-legend button{display:inline-flex;align-items:center;gap:5px;border:0;background:transparent;font:inherit;font-size:12px;font-weight:900;color:var(--text);cursor:pointer;padding:4px 9px;border-radius:999px;transition:background .16s}
+.macro-legend button:hover{background:var(--primary-soft)}
+.info-i{display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;border-radius:50%;border:1px solid currentColor;font-size:9px;font-style:italic;opacity:.55}
+.macro-info-kcal{margin:0 0 6px;font-weight:950}
+.macro-info-intro{margin:0 0 12px;font-size:14px;line-height:1.5;color:var(--text)}
+.macro-info-types{display:flex;flex-direction:column;gap:8px;margin-bottom:12px}
+.macro-info-type{border:1px solid var(--border);background:var(--surface-soft);border-radius:14px;padding:10px 12px}
+.macro-info-type strong{display:block;font-size:13px;margin-bottom:2px}
+.macro-info-type span{font-size:13px;color:var(--muted);line-height:1.45}
 .legend-dot{width:10px;height:10px;border-radius:50%;display:inline-block;flex:0 0 auto}
 .water-btns{justify-content:center;gap:6px;margin-top:10px}
 .water-btns .btn{padding:8px 10px;font-size:12px}
