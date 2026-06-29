@@ -114,6 +114,9 @@ button,input,select,textarea{font:inherit}
 .snap-total span{font-size:13px;font-weight:900;color:#3d5b34}
 .snap-footer{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap;margin-top:6px}
 .snap-meal{flex:1;min-width:160px}
+.snap-describe{margin:12px 0;display:flex;flex-direction:column;gap:8px;text-align:left}
+.snap-describe textarea{width:100%;resize:vertical;min-height:46px}
+.snap-correct-btn{width:100%;margin:8px 0}
 @media(max-width:700px){.snap-modal{padding:15px;border-radius:20px}.snap-item-row{grid-template-columns:auto 34px 1fr auto 34px}.snap-footer{flex-direction:column;align-items:stretch}.snap-footer .btn{width:100%}}
 
 /* CalSnap — scan code-barres */
@@ -318,3 +321,6 @@ button,input,select,textarea{font:inherit}
 .filter-chip.active{background:var(--primary);border-color:var(--primary);color:#fff}
 [data-theme="dark"] .filter-chip{background:#161d17;border-color:#2f4a31;color:#cdddc9}
 [data-theme="dark"] .filter-chip.active{background:var(--primary-2);border-color:var(--primary-2);color:#0f1410}
+.qty-btn-sm{width:34px;height:34px;font-size:18px;border-radius:11px}
+.onboarding-card{background:linear-gradient(135deg,#eef8e9,#fffaf0);border:1px solid #d8e9cc}
+[data-theme="dark"] .onboarding-card{background:linear-gradient(135deg,#16241a,#1b2417);border-color:#2a402c}
