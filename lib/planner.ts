@@ -8,7 +8,9 @@ export function isRecipeAllowed(recipe: Recipe, profile: Profile) {
   const text = recipe.title.toLowerCase();
   if (profile.dislikedFoods.some(x => x && text.includes(x.toLowerCase()))) return false;
   const allergenConflict = recipe.ingredients.some(it => findFood(it.foodId)?.allergens.some(a => profile.allergies.includes(a)));
-  return !allergenConflict;
+  if (allergenConflict) return false;
+  if (profile.avoidSoy && recipe.ingredients.some(it => findFood(it.foodId)?.allergens.includes("soja"))) return false;
+  return true;
 }
 
 // Répartition des calories de la journée par repas (la somme des ratios fait 1).

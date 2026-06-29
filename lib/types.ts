@@ -53,6 +53,7 @@ export type Profile = {
   likedFoods: string[];
   trainingDays: number[];
   intermittentFasting?: boolean;
+  avoidSoy?: boolean;
   maxPrepTime: number;
   cookingLevel: "etudiant" | "normal" | "meal_prep" | "famille";
 };

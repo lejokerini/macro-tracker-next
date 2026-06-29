@@ -311,3 +311,10 @@ button,input,select,textarea{font:inherit}
 .program-item{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;text-align:left;cursor:pointer;color:var(--text);font:inherit}
 .program-item-main{min-width:0}
 .program-arrow{flex:0 0 auto;font-size:24px;font-weight:900;color:var(--primary);opacity:.55}
+
+/* Filtres recettes (meal prep / sans soja) */
+.filter-chip{border:1px solid #d9e7cf;background:#fff;color:#3d5b34;border-radius:999px;padding:8px 13px;font-size:13px;font-weight:900;cursor:pointer;transition:.16s ease}
+.filter-chip:hover{transform:translateY(-1px)}
+.filter-chip.active{background:var(--primary);border-color:var(--primary);color:#fff}
+[data-theme="dark"] .filter-chip{background:#161d17;border-color:#2f4a31;color:#cdddc9}
+[data-theme="dark"] .filter-chip.active{background:var(--primary-2);border-color:var(--primary-2);color:#0f1410}
