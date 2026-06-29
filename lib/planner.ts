@@ -65,7 +65,7 @@ export function scoreProgram(program: ProgramMeal[], recipes: Recipe[], targets:
     day.kcal += m.kcal * f; day.protein += m.protein * f; day.carbs += m.carbs * f; day.fat += m.fat * f; day.cost += cost; day.titles.add(r.title);
     byDate.set(pm.date, day);
   });
-  const days = [...byDate.values()]; if(!days.length) return { score:0, cost:0, notes:["Aucun programme généré"] };
+  const days = [...byDate.values()]; if(!days.length) return { score:0, cost:0, notes:["Aucun programme généré"], avgProtein:0, avgKcal:0 };
   const avg = days.reduce((a,d)=>({ kcal:a.kcal+d.kcal, protein:a.protein+d.protein, carbs:a.carbs+d.carbs, fat:a.fat+d.fat, cost:a.cost+d.cost, titles:a.titles }), {kcal:0,protein:0,carbs:0,fat:0,cost:0,titles:new Set<string>()});
   avg.kcal/=days.length; avg.protein/=days.length; avg.carbs/=days.length; avg.fat/=days.length;
   const cost = days.reduce((s,d)=>s+d.cost,0);
