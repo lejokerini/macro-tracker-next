@@ -78,21 +78,40 @@ function sanitizeItems(parsed: unknown): ScanItem[] {
 
 type ImageInput = { base64: string; mediaType: AllowedMedia } | null;
 
-async function analyzeWithGemini(prompt: string, image: ImageInput, apiKey: string): Promise<string> {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${encodeURIComponent(apiKey)}`;
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+function geminiRequest(model: string, prompt: string, image: ImageInput, apiKey: string) {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`;
   const parts: unknown[] = [{ text: prompt }];
   if (image) parts.push({ inline_data: { mime_type: image.mediaType, data: image.base64 } });
-  const res = await fetch(url, {
+  return fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ contents: [{ parts }], generationConfig: { temperature: 0.2, maxOutputTokens: 1500, responseMimeType: "application/json" } }),
   });
-  if (!res.ok) {
-    const detail = await res.text().catch(() => "");
-    throw new Error(`Gemini HTTP ${res.status} ${detail.slice(0, 200)}`);
+}
+
+async function analyzeWithGemini(prompt: string, image: ImageInput, apiKey: string): Promise<string> {
+  // Modèle principal puis repli léger ; on retente en cas de surcharge (503/429).
+  const models = Array.from(new Set([GEMINI_MODEL, "gemini-2.5-flash-lite"]));
+  let overloaded = false;
+  for (const model of models) {
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const res = await geminiRequest(model, prompt, image, apiKey);
+      if (res.ok) {
+        const data = (await res.json()) as { candidates?: { content?: { parts?: { text?: string }[] } }[] };
+        return (data.candidates?.[0]?.content?.parts || []).map((p) => p.text || "").join("");
+      }
+      if (res.status === 503 || res.status === 429) {
+        overloaded = true;
+        await sleep(600 * (attempt + 1));
+        continue;
+      }
+      const detail = await res.text().catch(() => "");
+      throw new Error(`Gemini HTTP ${res.status} ${detail.slice(0, 120)}`);
+    }
   }
-  const data = (await res.json()) as { candidates?: { content?: { parts?: { text?: string }[] } }[] };
-  return (data.candidates?.[0]?.content?.parts || []).map((p) => p.text || "").join("");
+  throw new Error(overloaded ? "Service d'analyse momentanément surchargé. Réessaie dans quelques secondes." : "Service d'analyse indisponible.");
 }
 
 async function analyzeWithAnthropic(prompt: string, image: ImageInput, apiKey: string): Promise<string> {
