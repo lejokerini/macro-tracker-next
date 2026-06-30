@@ -884,6 +884,7 @@ function BmiInfoModal({ open, onClose }: { open: boolean; onClose: () => void })
         <div className="macro-info-type"><strong>À quoi ça sert</strong><span>Un premier indicateur du risque lié au poids, facile à calculer et utile pour un suivi grossier dans le temps.</span></div>
         <div className="macro-info-type"><strong>Ses limites</strong><span>Il ne distingue PAS le muscle de la graisse : une personne musclée peut être classée « surpoids » sans excès de gras. Il ignore aussi la répartition des graisses, l&apos;âge, le sexe et l&apos;origine. Ce n&apos;est pas un diagnostic.</span></div>
         <p className="notice" style={{ marginTop: 12 }}>Si tu fais du sport, le <strong>taux de masse grasse</strong> (estimable dans ton profil) et le <strong>tour de taille</strong> sont bien plus parlants que l&apos;IMC seul.</p>
+        <p className="form-help" style={{ marginTop: 10 }}>Source : classification de l&apos;OMS (Organisation mondiale de la Santé).</p>
       </div>
     </div>
   );
@@ -899,6 +900,7 @@ function MicroDetailModal({ micro, onClose }: { micro: MicroKey | null; onClose:
         <p className="macro-info-intro">{info.role}</p>
         <div className="macro-info-type"><strong>Où en trouver</strong><span>{info.sources}</span></div>
         <p className="notice" style={{ marginTop: 12 }}>{info.limit ? "Il s'agit d'un maximum : l'objectif est de rester en dessous." : "Valeur de référence adulte (EFSA / UE, proche des recommandations OMS). Les besoins varient selon l'âge, le sexe et l'activité."}</p>
+        <p className="form-help" style={{ marginTop: 10 }}>Source : valeurs nutritionnelles de référence EFSA / UE ; recommandations OMS pour le sel et les sucres.</p>
       </div>
     </div>
   );

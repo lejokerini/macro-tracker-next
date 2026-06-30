@@ -2,7 +2,7 @@
 
 export type MacroKind = "protein" | "carbs" | "fat";
 
-const CONTENT: Record<MacroKind, { title: string; color: string; kcal: string; intro: string; types: { name: string; desc: string }[]; tip: string }> = {
+const CONTENT: Record<MacroKind, { title: string; color: string; kcal: string; intro: string; types: { name: string; desc: string }[]; tip: string; refs: string }> = {
   protein: {
     title: "Protéines",
     color: "#2f6b2f",
@@ -13,6 +13,7 @@ const CONTENT: Record<MacroKind, { title: string; color: string; kcal: string; i
       { name: "Végétales", desc: "Légumineuses, tofu, céréales — souvent incomplètes seules, à combiner (ex. riz + lentilles)." },
     ],
     tip: "Repère : 1,6 à 2,2 g par kg de poids de corps (c'est l'unité des études de référence). Si ton taux de masse grasse est élevé, raisonne plutôt par kg de masse maigre — soit ≈ 2,3 à 3,1 g/kg de masse maigre.",
+    refs: "Morton et al., 2018 (méta-analyse, Br J Sports Med) ; position de l'ISSN, Jäger et al., 2017 ; Helms et al., 2014 (recommandations par masse maigre).",
   },
   carbs: {
     title: "Glucides",
@@ -25,6 +26,7 @@ const CONTENT: Record<MacroKind, { title: string; color: string; kcal: string; i
       { name: "Fibres", desc: "Légumes, légumineuses, produits complets — digestion, satiété, glycémie stable." },
     ],
     tip: "Privilégie les complexes et les fibres autour de tes entraînements.",
+    refs: "Position de l'ISSN sur la nutrition du sport (Kerksick et al., 2018) ; recommandations OMS/EFSA sur les fibres (≈ 25–30 g/jour).",
   },
   fat: {
     title: "Lipides",
@@ -37,6 +39,7 @@ const CONTENT: Record<MacroKind, { title: string; color: string; kcal: string; i
       { name: "Trans (à éviter)", desc: "Produits ultra-transformés, fritures industrielles." },
     ],
     tip: "Repère : environ 0,8 à 1 g par kg, jamais sous 0,6 g/kg (hormones).",
+    refs: "Apports de référence EFSA ; un minimum d'environ 0,6–0,8 g/kg est conseillé pour préserver la fonction hormonale (revues en nutrition du sport, ex. Helms et al., 2014).",
   },
 };
 
@@ -61,6 +64,7 @@ export default function MacroInfoModal({ macro, onClose }: { macro: MacroKind | 
           ))}
         </div>
         <p className="notice">{c.tip}</p>
+        <p className="form-help" style={{ marginTop: 10 }}>Sources : {c.refs}</p>
       </div>
     </div>
   );
