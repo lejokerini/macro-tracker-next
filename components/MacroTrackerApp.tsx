@@ -39,25 +39,28 @@ function recipeIsSoyFree(r: Recipe) {
   return !r.ingredients.some(it => findFood(it.foodId)?.allergens.includes("soja"));
 }
 
-const MICRO_LABELS: Record<MicroKey, { label: string; unit: string; group: "Vitamines" | "Minéraux" | "Autres" }> = {
-  sugars: { label: "Sucres", unit: "g", group: "Autres" },
-  salt: { label: "Sel", unit: "g", group: "Autres" },
-  calcium: { label: "Calcium", unit: "mg", group: "Minéraux" },
-  iron: { label: "Fer", unit: "mg", group: "Minéraux" },
-  magnesium: { label: "Magnésium", unit: "mg", group: "Minéraux" },
-  potassium: { label: "Potassium", unit: "mg", group: "Minéraux" },
-  sodium: { label: "Sodium", unit: "mg", group: "Minéraux" },
-  zinc: { label: "Zinc", unit: "mg", group: "Minéraux" },
-  vitA: { label: "Vit. A", unit: "µg", group: "Vitamines" },
-  vitD: { label: "Vit. D", unit: "µg", group: "Vitamines" },
-  vitE: { label: "Vit. E", unit: "mg", group: "Vitamines" },
-  vitC: { label: "Vit. C", unit: "mg", group: "Vitamines" },
-  vitB1: { label: "B1", unit: "mg", group: "Vitamines" },
-  vitB2: { label: "B2", unit: "mg", group: "Vitamines" },
-  vitB3: { label: "B3", unit: "mg", group: "Vitamines" },
-  vitB6: { label: "B6", unit: "mg", group: "Vitamines" },
-  vitB9: { label: "B9", unit: "µg", group: "Vitamines" },
-  vitB12: { label: "B12", unit: "µg", group: "Vitamines" },
+type MicroInfo = { label: string; unit: string; group: "Vitamines" | "Minéraux" | "Autres"; rda: number; limit?: boolean; role: string; sources: string };
+// rda = apport de référence adulte (valeurs de référence EFSA/UE, proches des recommandations OMS).
+// limit = il s'agit d'un maximum à ne pas dépasser plutôt que d'une cible.
+const MICRO_LABELS: Record<MicroKey, MicroInfo> = {
+  sugars: { label: "Sucres", unit: "g", group: "Autres", rda: 50, limit: true, role: "Glucides simples, source d'énergie rapide. En excès (surtout sucres ajoutés), favorisent la prise de poids, les caries et les pics de glycémie.", sources: "Sodas, jus, confiseries, pâtisseries, fruits." },
+  salt: { label: "Sel", unit: "g", group: "Autres", rda: 5, limit: true, role: "Apporte le sodium. En excès, augmente la tension artérielle et le risque cardiovasculaire. L'OMS recommande moins de 5 g/jour.", sources: "Plats préparés, charcuterie, pain, fromage, snacks." },
+  calcium: { label: "Calcium", unit: "mg", group: "Minéraux", rda: 1000, role: "Construction des os et des dents, contraction musculaire, coagulation et transmission nerveuse.", sources: "Produits laitiers, légumes verts, amandes, eaux calciques." },
+  iron: { label: "Fer", unit: "mg", group: "Minéraux", rda: 14, role: "Transport de l'oxygène dans le sang (hémoglobine) et production d'énergie. Un manque cause fatigue et anémie.", sources: "Viande rouge, boudin, légumineuses, épinards." },
+  magnesium: { label: "Magnésium", unit: "mg", group: "Minéraux", rda: 375, role: "Fonction musculaire et nerveuse, production d'énergie, réduit la fatigue. Souvent insuffisant.", sources: "Chocolat noir, oléagineux, céréales complètes, légumineuses." },
+  potassium: { label: "Potassium", unit: "mg", group: "Minéraux", rda: 3500, role: "Équilibre hydrique, régulation de la tension, fonction musculaire et nerveuse. Contrebalance le sodium.", sources: "Banane, pomme de terre, légumineuses, légumes." },
+  sodium: { label: "Sodium", unit: "mg", group: "Minéraux", rda: 2000, limit: true, role: "Équilibre hydrique et influx nerveux. Vient surtout du sel ; à limiter pour la tension.", sources: "Sel, plats préparés, charcuterie, fromage." },
+  zinc: { label: "Zinc", unit: "mg", group: "Minéraux", rda: 10, role: "Immunité, cicatrisation, synthèse des protéines, fertilité et testostérone.", sources: "Viande, fruits de mer (huîtres), graines, légumineuses." },
+  vitA: { label: "Vit. A", unit: "µg", group: "Vitamines", rda: 800, role: "Vision (surtout nocturne), santé de la peau et des muqueuses, immunité.", sources: "Foie, œufs, beurre, carotte et patate douce (béta-carotène)." },
+  vitD: { label: "Vit. D", unit: "µg", group: "Vitamines", rda: 15, role: "Fixation du calcium sur les os, immunité, humeur. Très souvent déficitaire en hiver.", sources: "Poissons gras, jaune d'œuf, exposition au soleil." },
+  vitE: { label: "Vit. E", unit: "mg", group: "Vitamines", rda: 12, role: "Antioxydant : protège les cellules du vieillissement et les membranes.", sources: "Huiles végétales, oléagineux, avocat." },
+  vitC: { label: "Vit. C", unit: "mg", group: "Vitamines", rda: 80, role: "Immunité, antioxydant, formation du collagène, et améliore l'absorption du fer végétal.", sources: "Agrumes, kiwi, poivron, fruits rouges, persil." },
+  vitB1: { label: "B1", unit: "mg", group: "Vitamines", rda: 1.1, role: "Transforme les glucides en énergie ; essentielle au système nerveux.", sources: "Céréales complètes, porc, légumineuses." },
+  vitB2: { label: "B2", unit: "mg", group: "Vitamines", rda: 1.4, role: "Production d'énergie, santé de la peau, des yeux et des muqueuses.", sources: "Produits laitiers, œufs, abats, amandes." },
+  vitB3: { label: "B3", unit: "mg", group: "Vitamines", rda: 16, role: "Métabolisme énergétique, peau et système nerveux.", sources: "Viande, poisson, céréales, cacahuètes." },
+  vitB6: { label: "B6", unit: "mg", group: "Vitamines", rda: 1.4, role: "Métabolisme des protéines et fabrication des neurotransmetteurs (humeur).", sources: "Viande, poisson, banane, pomme de terre." },
+  vitB9: { label: "B9", unit: "µg", group: "Vitamines", rda: 330, role: "Renouvellement cellulaire et formation du sang. Cruciale avant et pendant la grossesse.", sources: "Légumes verts à feuilles, légumineuses, foie." },
+  vitB12: { label: "B12", unit: "µg", group: "Vitamines", rda: 2.5, role: "Formation des globules rouges et fonctionnement du système nerveux. Absente des végétaux : à supplémenter si vegan.", sources: "Viande, poisson, œufs, produits laitiers." },
 };
 const MICRO_ORDER = Object.keys(MICRO_LABELS) as MicroKey[];
 
@@ -152,6 +155,7 @@ export default function MacroTrackerApp() {
   const [bodyFat, setBodyFat] = useState("");
   const [bfModalOpen, setBfModalOpen] = useState(false);
   const [macroInfo, setMacroInfo] = useState<MacroKind | null>(null);
+  const [microDetail, setMicroDetail] = useState<MicroKey | null>(null);
   const supabase = useMemo(() => createBrowserSupabaseClient(), []);
   const [session, setSession] = useState<Session | null>(null);
   const [authEmail, setAuthEmail] = useState("");
@@ -554,8 +558,7 @@ export default function MacroTrackerApp() {
       <div className="card span-4 chart-card"><h3>Calories du jour</h3><ProgressRing value={totals.kcal} max={targets?.kcal || 0} color="var(--primary-2)" top={`${totals.kcal}`} bottom={targets ? `/ ${targets.kcal}` : "kcal"} /><span className="chart-foot">{targets ? `${Math.max(0, targets.kcal - totals.kcal)} kcal restantes` : "Crée un profil pour ta cible"}</span></div>
       <div className="card span-4 chart-card"><h3>Macros</h3><MacroPie protein={totals.protein} carbs={totals.carbs} fat={totals.fat} /><div className="macro-legend"><button type="button" onClick={()=>setMacroInfo("protein")}><i className="legend-dot" style={{background:"#2f6b2f"}} />P {totals.protein}g <span className="info-i">i</span></button><button type="button" onClick={()=>setMacroInfo("carbs")}><i className="legend-dot" style={{background:"#f3a52c"}} />G {totals.carbs}g <span className="info-i">i</span></button><button type="button" onClick={()=>setMacroInfo("fat")}><i className="legend-dot" style={{background:"#8a6bd1"}} />L {totals.fat}g <span className="info-i">i</span></button></div><span className="chart-foot">🌾 Fibres {totals.fiber}{targets ? ` / ${targets.fiber}` : ""} g</span></div>
       <div className="card span-4 chart-card"><h3>💧 Hydratation</h3><ProgressRing value={(state.water||{})[date]||0} max={waterGoal} color="#3b9bd6" top={`${(state.water||{})[date]||0}`} bottom={`/ ${waterGoal} ml`} /><div className="row water-btns"><button className="btn secondary" onClick={()=>addWater(100)}>+10cl</button><button className="btn secondary" onClick={()=>addWater(150)}>+15cl</button><button className="btn secondary" onClick={()=>addWater(250)}>+25cl</button><button className="btn secondary" onClick={()=>addWater(500)}>+50cl</button><button className="btn secondary" onClick={()=>addWater(-100)} disabled={!((state.water||{})[date])}>−10cl</button></div></div>
-      <div className="card span-12"><h2>Actions rapides</h2><div className="row"><button className="btn" onClick={()=>setSnapOpen(true)}>📸 Snap mon repas</button><button className="btn" onClick={()=>setBarcodeOpen(true)}>🏷️ Scanner un code-barres</button><button className="btn" disabled={!activeProfile} onClick={generate}>Générer 7 jours</button><button className="btn secondary" onClick={()=>setTab("journal")}>Ajouter un aliment</button><button className="btn secondary" onClick={()=>setTab("recettes")}>Cuisiner une recette</button><button className="btn secondary" onClick={()=>setTab("courses")}>Voir courses</button></div></div>
-      <div className="card span-12"><MicroPanel title="Vitamines & minéraux du jour" micros={microsToday}/></div>
+      <div className="card span-12"><MicroPanel title="Vitamines & minéraux du jour" micros={microsToday} onInfo={setMicroDetail}/></div>
     </section>}
 
     {tab === "profil" && <section className="grid">
@@ -576,8 +579,8 @@ export default function MacroTrackerApp() {
     </form></div><div className="card span-4"><h3>Profils existants</h3><div className="list">{state.profiles.map(p=><div className="item" key={p.id}><div className="space"><strong>{p.firstName} {p.lastName}</strong><button className="btn secondary" onClick={()=>setState(s=>({...s,activeProfileId:p.id}))}>Activer</button></div><span className="muted">{p.goal} · {p.diet}</span><div className="row" style={{marginTop:8}}><button className="btn danger" onClick={()=>{if(confirm("Supprimer ce profil ?")) setState(s=>({ ...s, profiles: s.profiles.filter(x=>x.id!==p.id), activeProfileId: s.activeProfileId === p.id ? undefined : s.activeProfileId }))}}>Supprimer</button></div></div>)}</div>{!state.profiles.length && <p className="muted">Aucun profil pour le moment.</p>}</div></section>}
 
     {tab === "journal" && <section className="grid">
-      <div className="card span-4"><h2>Ajouter</h2><button className="btn snap-cta" onClick={()=>setSnapOpen(true)}>📸 Snap mon repas (photo → calories)</button><button className="btn secondary snap-cta" onClick={()=>setBarcodeOpen(true)}>🏷️ Scanner un code-barres</button><label>Date</label><input type="date" value={date} onChange={e=>setDate(e.target.value)} /><label>Repas</label><select value={selectedMeal} onChange={e=>setSelectedMeal(e.target.value as MealType)}>{MEALS.map(m=><option key={m}>{m}</option>)}</select>{(favoriteFoods.length > 0 || recentFoods.length > 0) && <div className="quick-foods">{favoriteFoods.length > 0 && <><div className="quick-foods-title">★ Favoris</div><div className="quick-foods-row">{favoriteFoods.slice(0,8).map(f=><button type="button" key={f.id} className="quick-food-chip" onClick={()=>quickAddFood(f)} title="Ajouter au journal"><span>{foodIcon(f)}</span>{f.name}</button>)}</div></>}{recentFoods.length > 0 && <><div className="quick-foods-title">Récents</div><div className="quick-foods-row">{recentFoods.slice(0,8).map(f=><button type="button" key={f.id} className="quick-food-chip" onClick={()=>quickAddFood(f)} title="Ajouter au journal"><span>{foodIcon(f)}</span>{f.name}</button>)}</div></>}</div>}<label>Recherche</label><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="marque, produit ou code-barres..."/><p className="form-help">Recherche locale + Open Food Facts pour les produits de marque.</p>{offLoading && <p className="form-help">Recherche Open Food Facts en cours...</p>}{offError && <p className="form-help bad-text">{offError}</p>}<ProductResults foods={foodOptions.slice(0,10)} selectedId={selectedFood} onSelect={setSelectedFood}/>{!foodOptions.length && !offLoading && <p className="form-help bad-text">Aucun résultat : l'application n’ajoute rien par défaut.</p>}{selectedFoodObj && <ProductCard food={selectedFoodObj} qty={qty} macros={selectedPreview} isFavorite={(state.favorites||[]).includes(selectedFoodObj.id)} onToggleFavorite={()=>toggleFavorite(selectedFoodObj)}/>}<QuantityPicker value={qty} onChange={setQty} food={selectedFoodObj}/><div className="macro-preview"><span>{selectedPreview.kcal} kcal</span><span>P {selectedPreview.protein}g</span><span>G {selectedPreview.carbs}g</span><span>L {selectedPreview.fat}g</span><span>Fibres {selectedPreview.fiber}g</span></div><MicroPanel title="Vitamines & minéraux de l'aliment" micros={selectedMicros}/><button className="btn" disabled={!selectedFood || !foodOptions.length || qty <= 0} onClick={addFoodLog}>Ajouter au journal</button></div>
-      <div className="card span-8"><h2>Journal du {date}</h2><div className="row" style={{margin:"2px 0 10px"}}><span className="muted">Dupliquer ce jour vers :</span><input type="date" value={copyDate} onChange={e=>setCopyDate(e.target.value)} style={{maxWidth:160}}/><button className="btn secondary" onClick={()=>duplicateDay(copyDate)} disabled={!dayLogs.length}>Copier</button></div><div className="pillbar"><div className="kpi">Kcal <strong>{totals.kcal}</strong></div><div className="kpi">P <strong>{totals.protein}g</strong></div><div className="kpi">G <strong>{totals.carbs}g</strong></div><div className="kpi">L <strong>{totals.fat}g</strong></div></div><MicroPanel title="Micros cumulés du jour" micros={microsToday}/>{MEALS.map(m=><div className="meal" key={m} style={{marginTop:12}}><div className="meal-head">{m}</div><div className="meal-body list">{dayLogs.filter(l=>l.meal===m).map(l=>{const f=findFoodAny(l.foodId); const kcal = f ? macrosFromBaseGrams(f,l.qty).kcal : 0; return <div className="item space" key={l.id}><span>{f?.name} · {formatQuantity(f, l.qty, l.displayQty, l.displayUnit)} {f && <span className="muted">· {kcal} kcal</span>}</span><div className="row" style={{gap:6}}><button className="qty-btn qty-btn-sm" onClick={()=>adjustLog(l, l.displayUnit==="piece"?-1:-10)} aria-label="Diminuer">−</button><button className="qty-btn qty-btn-sm" onClick={()=>adjustLog(l, l.displayUnit==="piece"?1:10)} aria-label="Augmenter">+</button><button className="btn danger" onClick={()=>removeLog(l.id)}>Retirer</button></div></div>})}</div></div>)}</div>
+      <div className="card span-4"><h2>Ajouter</h2><button className="btn snap-cta" onClick={()=>setSnapOpen(true)}>📸 Snap mon repas (photo → calories)</button><button className="btn secondary snap-cta" onClick={()=>setBarcodeOpen(true)}>🏷️ Scanner un code-barres</button><label>Date</label><input type="date" value={date} onChange={e=>setDate(e.target.value)} /><label>Repas</label><select value={selectedMeal} onChange={e=>setSelectedMeal(e.target.value as MealType)}>{MEALS.map(m=><option key={m}>{m}</option>)}</select>{(favoriteFoods.length > 0 || recentFoods.length > 0) && <div className="quick-foods">{favoriteFoods.length > 0 && <><div className="quick-foods-title">★ Favoris</div><div className="quick-foods-row">{favoriteFoods.slice(0,8).map(f=><button type="button" key={f.id} className="quick-food-chip" onClick={()=>quickAddFood(f)} title="Ajouter au journal"><span>{foodIcon(f)}</span>{f.name}</button>)}</div></>}{recentFoods.length > 0 && <><div className="quick-foods-title">Récents</div><div className="quick-foods-row">{recentFoods.slice(0,8).map(f=><button type="button" key={f.id} className="quick-food-chip" onClick={()=>quickAddFood(f)} title="Ajouter au journal"><span>{foodIcon(f)}</span>{f.name}</button>)}</div></>}</div>}<label>Recherche</label><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="marque, produit ou code-barres..."/><p className="form-help">Recherche locale + Open Food Facts pour les produits de marque.</p>{offLoading && <p className="form-help">Recherche Open Food Facts en cours...</p>}{offError && <p className="form-help bad-text">{offError}</p>}<ProductResults foods={foodOptions.slice(0,10)} selectedId={selectedFood} onSelect={setSelectedFood}/>{!foodOptions.length && !offLoading && <p className="form-help bad-text">Aucun résultat : l'application n’ajoute rien par défaut.</p>}{selectedFoodObj && <ProductCard food={selectedFoodObj} qty={qty} macros={selectedPreview} isFavorite={(state.favorites||[]).includes(selectedFoodObj.id)} onToggleFavorite={()=>toggleFavorite(selectedFoodObj)}/>}<QuantityPicker value={qty} onChange={setQty} food={selectedFoodObj}/><div className="macro-preview"><span>{selectedPreview.kcal} kcal</span><span>P {selectedPreview.protein}g</span><span>G {selectedPreview.carbs}g</span><span>L {selectedPreview.fat}g</span><span>Fibres {selectedPreview.fiber}g</span></div><MicroPanel title="Vitamines & minéraux de l'aliment" micros={selectedMicros} onInfo={setMicroDetail}/><button className="btn" disabled={!selectedFood || !foodOptions.length || qty <= 0} onClick={addFoodLog}>Ajouter au journal</button></div>
+      <div className="card span-8"><h2>Journal du {date}</h2><div className="row" style={{margin:"2px 0 10px"}}><span className="muted">Dupliquer ce jour vers :</span><input type="date" value={copyDate} onChange={e=>setCopyDate(e.target.value)} style={{maxWidth:160}}/><button className="btn secondary" onClick={()=>duplicateDay(copyDate)} disabled={!dayLogs.length}>Copier</button></div><div className="pillbar"><div className="kpi">Kcal <strong>{totals.kcal}</strong></div><div className="kpi">P <strong>{totals.protein}g</strong></div><div className="kpi">G <strong>{totals.carbs}g</strong></div><div className="kpi">L <strong>{totals.fat}g</strong></div></div><MicroPanel title="Micros cumulés du jour" micros={microsToday} onInfo={setMicroDetail}/>{MEALS.map(m=><div className="meal" key={m} style={{marginTop:12}}><div className="meal-head">{m}</div><div className="meal-body list">{dayLogs.filter(l=>l.meal===m).map(l=>{const f=findFoodAny(l.foodId); const kcal = f ? macrosFromBaseGrams(f,l.qty).kcal : 0; return <div className="item space" key={l.id}><span>{f?.name} · {formatQuantity(f, l.qty, l.displayQty, l.displayUnit)} {f && <span className="muted">· {kcal} kcal</span>}</span><div className="row" style={{gap:6}}><button className="qty-btn qty-btn-sm" onClick={()=>adjustLog(l, l.displayUnit==="piece"?-1:-10)} aria-label="Diminuer">−</button><button className="qty-btn qty-btn-sm" onClick={()=>adjustLog(l, l.displayUnit==="piece"?1:10)} aria-label="Augmenter">+</button><button className="btn danger" onClick={()=>removeLog(l.id)}>Retirer</button></div></div>})}</div></div>)}</div>
     </section>}
 
     {tab === "catalogue" && <section className="grid"><div className="card span-12"><h2>Catalogue structuré</h2><p className="muted">Base Ciqual/Anses intégrée + recherche Open Food Facts en direct pour les produits de marque, images, code-barres et portions.</p><div className="row"><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Rechercher"/><select value={category} onChange={e=>setCategory(e.target.value)}>{categories.map(c=><option key={c} value={c}>{c === "all" ? "Tous rayons" : c}</option>)}</select></div><div className="scroll"><table className="table"><thead><tr><th>Aliment</th><th>Rayon</th><th>Macros</th><th>Vitamines / minéraux</th><th>Régimes</th><th>Allergènes</th><th>Achat</th></tr></thead><tbody>{visibleFoods.slice(0,500).map(f=><tr key={f.id}><td><div className="catalog-food"><span className="mini-food-icon">{foodIcon(f)}</span><span><strong>{f.name}</strong><br/><span className="muted">{f.brand ? `${f.brand} · ` : ""}{f.state} · {f.reliability} · {sourceLabel(f)}{isPieceInput(f) ? ` · 1 ${f.servingLabel || "pièce"} ≈ ${estimateServingGrams(f)} g` : ""}</span></span></div></td><td>{f.category}</td><td>{f.macros.kcal} kcal · P{f.macros.protein} G{f.macros.carbs} L{f.macros.fat}</td><td><MicroInline food={f}/></td><td>{f.diets.map(d=><span className="tag" key={d}>{d}</span>)}</td><td>{f.allergens.length ? f.allergens.map(a=><span className="tag warn" key={a}>{a}</span>) : <span className="muted">RAS</span>}</td><td>{f.purchaseUnit}</td></tr>)}</tbody></table></div></div></section>}
@@ -613,11 +616,12 @@ export default function MacroTrackerApp() {
       <div className="card span-12"><h2>Réinitialisation</h2><div className="row"><button className="btn danger" onClick={()=>setState(s=>({...s,logs:[]}))}>Journal</button><button className="btn danger" onClick={()=>setState(s=>({...s,weights:[]}))}>Poids</button><button className="btn danger" onClick={()=>setState(s=>({...s,pantry:[]}))}>Placard</button><button className="btn danger" onClick={()=>{if(confirm("Tout effacer ?")) setState(emptyState)}}>Tout</button></div></div>
     </section>}
 
-    <SnapModal open={snapOpen} onClose={()=>setSnapOpen(false)} onConfirm={addScannedItems} defaultMeal={selectedMeal} date={date} />
+    <SnapModal open={snapOpen} onClose={()=>setSnapOpen(false)} onConfirm={addScannedItems} onScanBarcode={()=>{ setSnapOpen(false); setBarcodeOpen(true); }} defaultMeal={selectedMeal} date={date} />
     <BarcodeScanModal open={barcodeOpen} onClose={()=>setBarcodeOpen(false)} onConfirm={addBarcodeFood} defaultMeal={selectedMeal} date={date} />
     <BodyFatModal open={bfModalOpen} onClose={()=>setBfModalOpen(false)} onApply={(v)=>{ setBodyFat(String(v)); setBfModalOpen(false); }} defaultSex={activeProfile?.sex || "homme"} defaultHeight={activeProfile?.heightCm} />
     <MacroInfoModal macro={macroInfo} onClose={()=>setMacroInfo(null)} />
     <CreateRecipeModal open={createRecipeOpen} onClose={()=>setCreateRecipeOpen(false)} onSave={addCustomRecipe} />
+    <MicroDetailModal micro={microDetail} onClose={()=>setMicroDetail(null)} />
 
     <nav className="bottom-nav">
       <button className={`bn-item ${tab==="dashboard"?"active":""}`} onClick={()=>setTab("dashboard")}><span className="bn-ico">🏠</span>Accueil</button>
@@ -787,14 +791,19 @@ function MicroInline({ food }: { food: Food }) {
   if (!entries.length) return <span className="muted">—</span>;
   return <div>{entries.map(k => <span className="tag" key={k}>{MICRO_LABELS[k].label} {cleanNumber(Number(food.micros?.[k] || 0))}{MICRO_LABELS[k].unit}</span>)}</div>;
 }
-function MicroPanel({ title, micros }: { title: string; micros: Partial<Record<MicroKey, number>> }) {
+function MicroPanel({ title, micros, onInfo }: { title: string; micros: Partial<Record<MicroKey, number>>; onInfo?: (k: MicroKey) => void }) {
   const groups = ["Vitamines", "Minéraux", "Autres"] as const;
   const hasAny = MICRO_ORDER.some(k => Number(micros[k] || 0) > 0);
   if (!hasAny) return <div className="micro-panel"><strong>{title}</strong><p className="muted">Aucune donnée micro disponible pour cet aliment.</p></div>;
-  return <div className="micro-panel"><strong>{title}</strong>{groups.map(group => {
+  return <div className="micro-panel"><strong>{title}</strong>{onInfo && <p className="form-help" style={{margin:"4px 0 0"}}>Touche un élément pour son rôle et l'apport conseillé.</p>}{groups.map(group => {
     const keys = MICRO_ORDER.filter(k => MICRO_LABELS[k].group === group && Number(micros[k] || 0) > 0);
     if (!keys.length) return null;
-    return <div key={group} className="micro-group"><span className="micro-group-title">{group}</span><div className="micro-grid">{keys.map(k => <span key={k}>{MICRO_LABELS[k].label}<strong>{cleanNumber(Number(micros[k] || 0))}{MICRO_LABELS[k].unit}</strong></span>)}</div></div>;
+    return <div key={group} className="micro-group"><span className="micro-group-title">{group}</span><div className="micro-grid">{keys.map(k => {
+      const info = MICRO_LABELS[k];
+      const v = cleanNumber(Number(micros[k] || 0));
+      const pct = info.rda ? Math.round((Number(micros[k] || 0) / info.rda) * 100) : 0;
+      return <button key={k} type="button" className="micro-cell" onClick={() => onInfo?.(k)} disabled={!onInfo}><span>{info.label}{onInfo && <span className="info-i">i</span>}</span><strong>{v}{info.unit}<small>{info.limit ? `${pct}% max` : `${pct}% VNR`}</small></strong></button>;
+    })}</div></div>;
   })}</div>;
 }
 function ProgressRing({ value, max, color, top, bottom }: { value: number; max: number; color: string; top: string; bottom: string }) {
@@ -833,6 +842,21 @@ function MacroPie({ protein, carbs, fat }: { protein: number; carbs: number; fat
       ))}
       <text x="64" y="68" textAnchor="middle" className="ring-sub">{tot > 0 ? "P · G · L" : "—"}</text>
     </svg>
+  );
+}
+function MicroDetailModal({ micro, onClose }: { micro: MicroKey | null; onClose: () => void }) {
+  if (!micro) return null;
+  const info = MICRO_LABELS[micro];
+  return (
+    <div className="snap-overlay" role="dialog" aria-modal="true" onClick={onClose}>
+      <div className="snap-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="snap-head"><h2>{info.label}</h2><button className="snap-close" onClick={onClose} aria-label="Fermer">✕</button></div>
+        <p className="macro-info-kcal" style={{ color: "var(--primary)" }}>{info.limit ? "Maximum conseillé" : "Apport de référence"} : {info.rda} {info.unit}/jour</p>
+        <p className="macro-info-intro">{info.role}</p>
+        <div className="macro-info-type"><strong>Où en trouver</strong><span>{info.sources}</span></div>
+        <p className="notice" style={{ marginTop: 12 }}>{info.limit ? "Il s'agit d'un maximum : l'objectif est de rester en dessous." : "Valeur de référence adulte (EFSA / UE, proche des recommandations OMS). Les besoins varient selon l'âge, le sexe et l'activité."}</p>
+      </div>
+    </div>
   );
 }
 function HistoryChart({ points, target }: { points: { kcal: number; label: string }[]; target?: number }) {

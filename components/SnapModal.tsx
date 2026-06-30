@@ -47,12 +47,14 @@ export default function SnapModal({
   open,
   onClose,
   onConfirm,
+  onScanBarcode,
   defaultMeal,
   date,
 }: {
   open: boolean;
   onClose: () => void;
   onConfirm: (items: EditableScanItem[], meal: MealType) => void;
+  onScanBarcode?: () => void;
   defaultMeal: MealType;
   date: string;
 }) {
@@ -203,6 +205,7 @@ export default function SnapModal({
             <div className="row" style={{ justifyContent: "center", flexWrap: "wrap" }}>
               <button className="btn" onClick={() => cameraRef.current?.click()}>📷 Prendre une photo</button>
               <button className="btn secondary" onClick={() => libraryRef.current?.click()}>🖼️ Importer</button>
+              {onScanBarcode && <button className="btn secondary" onClick={() => { reset(); onScanBarcode(); }}>🏷️ Code-barres</button>}
             </div>
             <div className="snap-describe">
               <label>Ou décris ton repas</label>
