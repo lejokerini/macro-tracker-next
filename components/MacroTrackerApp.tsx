@@ -65,7 +65,8 @@ const MICRO_LABELS: Record<MicroKey, MicroInfo> = {
 const MICRO_ORDER = Object.keys(MICRO_LABELS) as MicroKey[];
 
 function uid(prefix="id") { return `${prefix}_${crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2)}`; }
-function today() { return new Date().toISOString().slice(0,10); }
+function isoLocal(d: Date) { return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; }
+function today() { return isoLocal(new Date()); }
 function cleanNumber(value: number) { return Math.abs(value) >= 10 ? Math.round(value) : Math.round(value * 100) / 100; }
 function frNum(v: FormDataEntryValue | string | null | undefined, fallback: number) {
   const x = Number(String(v ?? "").replace(",", ".").trim());
@@ -284,14 +285,14 @@ export default function MacroTrackerApp() {
     const set = new Set(state.logs.map(l => l.date));
     let s = 0;
     const d = new Date();
-    if (!set.has(d.toISOString().slice(0, 10))) d.setDate(d.getDate() - 1);
-    while (set.has(d.toISOString().slice(0, 10))) { s++; d.setDate(d.getDate() - 1); }
+    if (!set.has(isoLocal(d))) d.setDate(d.getDate() - 1);
+    while (set.has(isoLocal(d))) { s++; d.setDate(d.getDate() - 1); }
     return s;
   }, [state.logs]);
   const history = useMemo(() => {
     const period = progressPeriod;
     const start = new Date(); start.setDate(start.getDate() - (period - 1));
-    const startIso = start.toISOString().slice(0, 10);
+    const startIso = isoLocal(start);
     const byDate = new Map<string, { kcal: number; protein: number; carbs: number; fat: number }>();
     state.logs.forEach(l => {
       if (l.date < startIso) return;
@@ -320,7 +321,7 @@ export default function MacroTrackerApp() {
         const off = b * bucketDays + k;
         if (off >= period) break;
         const dd = new Date(start); dd.setDate(start.getDate() + off);
-        lastIso = dd.toISOString().slice(0, 10);
+        lastIso = isoLocal(dd);
         const dv = byDate.get(lastIso);
         if (dv) { bs += dv.kcal; bc++; }
       }
