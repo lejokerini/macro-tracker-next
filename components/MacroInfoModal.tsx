@@ -12,7 +12,7 @@ const CONTENT: Record<MacroKind, { title: string; color: string; kcal: string; i
       { name: "Animales (complètes)", desc: "Viande, poisson, œufs, produits laitiers, whey — contiennent tous les acides aminés essentiels." },
       { name: "Végétales", desc: "Légumineuses, tofu, céréales — souvent incomplètes seules, à combiner (ex. riz + lentilles)." },
     ],
-    tip: "Repère : 1,6 à 2,2 g par kg de poids de corps.",
+    tip: "Repère : 1,6 à 2,2 g par kg de poids de corps (c'est l'unité des études de référence). Si ton taux de masse grasse est élevé, raisonne plutôt par kg de masse maigre — soit ≈ 2,3 à 3,1 g/kg de masse maigre.",
   },
   carbs: {
     title: "Glucides",

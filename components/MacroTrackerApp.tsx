@@ -138,6 +138,7 @@ export default function MacroTrackerApp() {
   const [pantryQty, setPantryQty] = useState(100);
   const [toast, setToast] = useState("");
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [bmiInfoOpen, setBmiInfoOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("all");
   const [selectedMeal, setSelectedMeal] = useState<MealType>("Déjeuner");
@@ -199,6 +200,8 @@ export default function MacroTrackerApp() {
   const activeProfile = state.profiles.find(p => p.id === state.activeProfileId);
   const targets = activeProfile ? calculateTargets(activeProfile) : null;
   const waterGoal = activeProfile ? Math.max(1500, Math.round(activeProfile.weightKg * 35)) : 2000;
+  const latestWeight = state.weights.length ? [...state.weights].sort((a, b) => a.date.localeCompare(b.date))[state.weights.length - 1].weightKg : activeProfile?.weightKg;
+  const bmi = activeProfile && latestWeight && activeProfile.heightCm > 0 ? latestWeight / Math.pow(activeProfile.heightCm / 100, 2) : null;
   const categories = useMemo(() => ["all", ...Array.from(new Set(foods.map(f => f.category))).sort((a,b)=>a.localeCompare(b,"fr"))], [ciqualReady]);
 
   useEffect(() => {
@@ -615,7 +618,7 @@ export default function MacroTrackerApp() {
 
     {tab === "placard" && <section className="grid"><div className="card span-4"><h2>Ajouter au placard</h2><input value={pantryQuery} onChange={e=>setPantryQuery(e.target.value)} placeholder="Rechercher un aliment"/><select value={pantrySelectedFood} disabled={!pantryOptions.length} onChange={e=>setPantrySelectedFood(e.target.value)}>{!pantryOptions.length ? <option value="">Aucun aliment trouvé</option> : pantryOptions.map(f=><option key={f.id} value={f.id}>{f.name}</option>)}</select>{!pantryOptions.length && <p className="form-help bad-text">Aucun aliment trouvé pour ce filtre.</p>}<QuantityPicker value={pantryQty} onChange={setPantryQty} food={pantrySelectedObj}/><button className="btn" disabled={!pantrySelectedFood || !pantryOptions.length || pantryQty <= 0} onClick={()=>addPantry(pantrySelectedFood, pantryQty)}>Ajouter</button></div><div className="card span-8"><h2>Placard / frigo</h2><div className="list">{state.pantry.map(p=>{const f=findFoodAny(p.foodId); return <div className="item space" key={p.id}><span>{f?.name} · {formatQuantity(f, p.qty, p.displayQty, p.displayUnit)}</span><button className="btn danger" onClick={()=>setState(s=>({...s,pantry:s.pantry.filter(x=>x.id!==p.id)}))}>Retirer</button></div>})}</div></div></section>}
 
-    {tab === "poids" && <section className="grid"><div className="card span-4"><h2>Pesée à jeun</h2><label>Poids du matin (kg)</label><input type="text" inputMode="decimal" placeholder="ex. 70,90" value={weightInput} onChange={e=>setWeightInput(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'){const w=frNum(weightInput,0); if(w>0){addWeight(w); setWeightInput("");}}}}/><button className="btn" style={{marginTop:8}} disabled={frNum(weightInput,0)<=0} onClick={()=>{const w=frNum(weightInput,0); if(w>0){addWeight(w); setWeightInput("");}}}>Ajouter pesée</button></div><div className="card span-8"><h2>Suivi du poids</h2><p>Moyenne 7 jours : <strong>{average7(state.weights) ?? "—"} kg</strong></p><p className="notice">{activeProfile ? weightTrendRecommendation(activeProfile, state.weights) : "Crée un profil pour obtenir une recommandation."}</p><WeightChart weights={state.weights}/><div className="list">{state.weights.slice(-10).reverse().map(w=><div className="item" key={w.id}>{w.date} · {w.weightKg} kg · <span className="muted">{w.note}</span></div>)}</div></div></section>}
+    {tab === "poids" && <section className="grid"><div className="card span-4"><h2>Pesée à jeun</h2><label>Poids du matin (kg)</label><input type="text" inputMode="decimal" placeholder="ex. 70,90" value={weightInput} onChange={e=>setWeightInput(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'){const w=frNum(weightInput,0); if(w>0){addWeight(w); setWeightInput("");}}}}/><button className="btn" style={{marginTop:8}} disabled={frNum(weightInput,0)<=0} onClick={()=>{const w=frNum(weightInput,0); if(w>0){addWeight(w); setWeightInput("");}}}>Ajouter pesée</button></div><div className="card span-8"><h2>Suivi du poids</h2><p>Moyenne 7 jours : <strong>{average7(state.weights) ?? "—"} kg</strong></p>{bmi ? <p>IMC : <strong>{bmi.toFixed(1)}</strong> <span className={`tag ${bmiCategory(bmi).tone}`}>{bmiCategory(bmi).label}</span> <button type="button" className="info-link" onClick={()=>setBmiInfoOpen(true)}>ⓘ infos &amp; limites</button></p> : <p className="muted">Renseigne ta taille (dans le profil) et ajoute une pesée pour afficher ton IMC.</p>}<p className="notice">{activeProfile ? weightTrendRecommendation(activeProfile, state.weights) : "Crée un profil pour obtenir une recommandation."}</p><WeightChart weights={state.weights}/><div className="list">{state.weights.slice(-10).reverse().map(w=><div className="item" key={w.id}>{w.date} · {w.weightKg} kg · <span className="muted">{w.note}</span></div>)}</div></div></section>}
 
     {tab === "progres" && <section className="grid">
       <div className="card span-12">
@@ -641,6 +644,7 @@ export default function MacroTrackerApp() {
     <MacroInfoModal macro={macroInfo} onClose={()=>setMacroInfo(null)} />
     <CreateRecipeModal open={createRecipeOpen} onClose={()=>setCreateRecipeOpen(false)} onSave={addCustomRecipe} />
     <MicroDetailModal micro={microDetail} onClose={()=>setMicroDetail(null)} />
+    <BmiInfoModal open={bmiInfoOpen} onClose={()=>setBmiInfoOpen(false)} />
     {toast && <div className="toast" role="status">{toast}</div>}
 
     <nav className="bottom-nav">
@@ -862,6 +866,26 @@ function MacroPie({ protein, carbs, fat }: { protein: number; carbs: number; fat
       ))}
       <text x="64" y="68" textAnchor="middle" className="ring-sub">{tot > 0 ? "P · G · L" : "—"}</text>
     </svg>
+  );
+}
+function bmiCategory(bmi: number): { label: string; tone: string } {
+  if (bmi < 18.5) return { label: "Maigreur", tone: "warn" };
+  if (bmi < 25) return { label: "Corpulence normale", tone: "" };
+  if (bmi < 30) return { label: "Surpoids", tone: "warn" };
+  return { label: "Obésité", tone: "bad" };
+}
+function BmiInfoModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+  if (!open) return null;
+  return (
+    <div className="snap-overlay" role="dialog" aria-modal="true" onClick={onClose}>
+      <div className="snap-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="snap-head"><h2>L&apos;IMC (indice de masse corporelle)</h2><button className="snap-close" onClick={onClose} aria-label="Fermer">✕</button></div>
+        <p className="macro-info-intro">L&apos;IMC = poids (kg) ÷ taille² (m). C&apos;est un repère <strong>simple et rapide</strong> pour situer ta corpulence : maigreur (&lt; 18,5), normal (18,5–25), surpoids (25–30), obésité (&gt; 30).</p>
+        <div className="macro-info-type"><strong>À quoi ça sert</strong><span>Un premier indicateur du risque lié au poids, facile à calculer et utile pour un suivi grossier dans le temps.</span></div>
+        <div className="macro-info-type"><strong>Ses limites</strong><span>Il ne distingue PAS le muscle de la graisse : une personne musclée peut être classée « surpoids » sans excès de gras. Il ignore aussi la répartition des graisses, l&apos;âge, le sexe et l&apos;origine. Ce n&apos;est pas un diagnostic.</span></div>
+        <p className="notice" style={{ marginTop: 12 }}>Si tu fais du sport, le <strong>taux de masse grasse</strong> (estimable dans ton profil) et le <strong>tour de taille</strong> sont bien plus parlants que l&apos;IMC seul.</p>
+      </div>
+    </div>
   );
 }
 function MicroDetailModal({ micro, onClose }: { micro: MicroKey | null; onClose: () => void }) {
