@@ -133,6 +133,11 @@ export default function MacroTrackerApp() {
   const [copyDate, setCopyDate] = useState(today());
   const [progressPeriod, setProgressPeriod] = useState(7);
   const [weightInput, setWeightInput] = useState("");
+  const [pantryQuery, setPantryQuery] = useState("");
+  const [pantrySelectedFood, setPantrySelectedFood] = useState("");
+  const [pantryQty, setPantryQty] = useState(100);
+  const [toast, setToast] = useState("");
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("all");
   const [selectedMeal, setSelectedMeal] = useState<MealType>("Déjeuner");
@@ -225,6 +230,13 @@ export default function MacroTrackerApp() {
   }, [supabase]);
 
   const staticVisibleFoods = useMemo(() => searchFoods(query, { category, diet: activeProfile?.diet, excludeAllergens: activeProfile?.allergies }), [query, category, activeProfile?.diet, activeProfile?.allergies, ciqualReady]);
+  const pantryOptions = useMemo(() => searchFoods(pantryQuery, { diet: activeProfile?.diet, excludeAllergens: activeProfile?.allergies }).slice(0, 300), [pantryQuery, activeProfile?.diet, activeProfile?.allergies, ciqualReady]);
+  const pantrySelectedObj = pantrySelectedFood ? findFoodAny(pantrySelectedFood) : undefined;
+  useEffect(() => {
+    if (!pantryOptions.length) { if (pantrySelectedFood) setPantrySelectedFood(""); return; }
+    if (!pantryOptions.some(f => f.id === pantrySelectedFood)) setPantrySelectedFood(pantryOptions[0].id);
+  }, [pantryOptions, pantrySelectedFood]);
+  useEffect(() => { if (pantrySelectedObj) setPantryQty(isPieceInput(pantrySelectedObj) ? 1 : 100); }, [pantrySelectedObj?.id]);
   const visibleFoods = useMemo(() => {
     const map = new Map<string, Food>();
     if (category === "all" || category.startsWith("Produit de marque")) offResults.forEach(f => map.set(f.id, f));
@@ -366,7 +378,7 @@ export default function MacroTrackerApp() {
   }
   function addFoodLog() {
     const food = selectedFood ? findFoodAny(selectedFood) : undefined;
-    if (!food || !foodOptions.some(f => f.id === selectedFood)) { alert("Aucun aliment valide sélectionné. Vérifie la recherche ou choisis un aliment dans la liste."); return; }
+    if (!food || !foodOptions.some(f => f.id === selectedFood)) { showToast("Choisis un aliment valide dans la liste."); return; }
     const baseQty = quantityToNutritionGrams(food, qty);
     rememberOpenFoodFactsFood(food);
     setState(s => ({ ...s, offFoods: food.source === "openfoodfacts" && !(s.offFoods || []).some(f => f.id === food.id) ? [...(s.offFoods || []), food] : (s.offFoods || []), logs: [...s.logs, { id: uid("log"), foodId: selectedFood, qty: baseQty, displayQty: qty, displayUnit: isPieceInput(food) ? "piece" : food.unit, meal: selectedMeal, date }] }));
@@ -385,7 +397,7 @@ export default function MacroTrackerApp() {
     const factor = recipeServings / Math.max(1, recipe.servings);
     const items: MealLogItem[] = recipe.ingredients.map(i => ({ id: uid("log"), foodId: i.foodId, qty: i.qty * factor, displayQty: i.qty * factor, displayUnit: "g", meal: recipe.mealType, date }));
     setState(s => ({ ...s, logs: [...s.logs, ...items] }));
-    alert(`Recette ajoutée au journal : ${recipe.title}`);
+    showToast(`Recette ajoutée : ${recipe.title}`);
   }
   function addScannedItems(items: EditableScanItem[], mealForItems: MealType) {
     if (!items.length) return;
@@ -426,6 +438,11 @@ export default function MacroTrackerApp() {
       return { ...s, favorites: nextFavs, offFoods: needsPersist ? [...(s.offFoods || []), food] : (s.offFoods || []) };
     });
   }
+  function showToast(msg: string) {
+    setToast(msg);
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    toastTimer.current = setTimeout(() => setToast(""), 2600);
+  }
   function removeLog(id: string) { setState(s => ({ ...s, logs: s.logs.filter(x=>x.id!==id) })); }
   function adjustLog(log: MealLogItem, deltaDisplay: number) {
     const food = findFoodAny(log.foodId);
@@ -438,16 +455,16 @@ export default function MacroTrackerApp() {
   }
   function duplicateDay(target: string) {
     const dayLogsNow = state.logs.filter(l => l.date === date);
-    if (!dayLogsNow.length) { alert("Rien à dupliquer pour ce jour."); return; }
-    if (target === date) { alert("Choisis une date différente."); return; }
+    if (!dayLogsNow.length) { showToast("Rien à dupliquer pour ce jour."); return; }
+    if (target === date) { showToast("Choisis une date différente."); return; }
     const copies = dayLogsNow.map(l => ({ ...l, id: uid("log"), date: target }));
     setState(s => ({ ...s, logs: [...s.logs, ...copies] }));
-    alert(`Journal du ${date} copié vers le ${target}.`);
+    showToast(`Journal copié vers le ${target}.`);
   }
   function generate() { if(!activeProfile) return; setState(s => ({ ...s, program: generateProgram(activeProfile, s.recipes, 7) })); setTab("programme"); }
   function addPantry(foodId: string, q: number) {
     const food = foodId ? findFoodAny(foodId) : undefined;
-    if (!food || !foodOptions.some(f => f.id === foodId)) { alert("Aucun aliment valide sélectionné pour le placard."); return; }
+    if (!food) { showToast("Choisis un aliment valide."); return; }
     const baseQty = quantityToNutritionGrams(food, q);
     setState(s => ({ ...s, offFoods: food.source === "openfoodfacts" && !(s.offFoods || []).some(f => f.id === food.id) ? [...(s.offFoods || []), food] : (s.offFoods || []), pantry: [...s.pantry, { id: uid("pantry"), foodId, qty: baseQty, unit: food.unit, displayQty: q, displayUnit: isPieceInput(food) ? "piece" : food.unit }] }));
   }
@@ -459,7 +476,7 @@ export default function MacroTrackerApp() {
     });
   }
   function exportJson() { const blob = new Blob([JSON.stringify(state,null,2)], { type:"application/json" }); const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="macro-tracker-backup.json"; a.click(); URL.revokeObjectURL(a.href); }
-  function importJson(file: File | null) { if(!file) return; file.text().then(t => { try { setState({ ...emptyState, ...JSON.parse(t) }); } catch { alert("Fichier invalide"); } }); }
+  function importJson(file: File | null) { if(!file) return; file.text().then(t => { try { const parsed = JSON.parse(t); const merged = { ...emptyState, ...parsed }; setState({ ...merged, profiles: migrateGoals(merged.profiles) }); showToast("Sauvegarde importée."); } catch { showToast("Fichier invalide."); } }); }
   async function signUp() {
     if (!supabase) { setAuthMessage("Supabase n'est pas encore configuré."); return; }
     setAuthMessage("Création du compte...");
@@ -596,7 +613,7 @@ export default function MacroTrackerApp() {
 
     {tab === "courses" && <section className="grid"><div className="card span-12"><h2>Liste de courses</h2><p className="muted">Déduit automatiquement le placard/frigo. Les prix restent indicatifs.</p><div className="scroll"><table className="table"><thead><tr><th>Rayon</th><th>Aliment</th><th>Besoin</th><th>Déjà dispo</th><th>À acheter</th><th>Paquets</th><th>Prix</th></tr></thead><tbody>{shopping.map(x=><tr key={x.foodId}><td>{x.category}</td><td>{x.name}</td><td>{Math.round(x.needed * 10) / 10} {x.unit}</td><td>{Math.round(x.available * 10) / 10} {x.unit}</td><td><strong>{Math.round(x.toBuy * 10) / 10} {x.unit}</strong></td><td>{x.packages} × {x.packageLabel}</td><td>{x.price.toFixed(2)} €</td></tr>)}</tbody></table></div></div></section>}
 
-    {tab === "placard" && <section className="grid"><div className="card span-4"><h2>Ajouter au placard</h2><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Rechercher"/><select value={selectedFood} disabled={!foodOptions.length} onChange={e=>setSelectedFood(e.target.value)}>{!foodOptions.length ? <option value="">Aucun aliment trouvé</option> : foodOptions.map(f=><option key={f.id} value={f.id}>{f.name}</option>)}</select>{!foodOptions.length && <p className="form-help bad-text">Aucun aliment trouvé pour ce filtre.</p>}<QuantityPicker value={qty} onChange={setQty} food={selectedFoodObj}/><button className="btn" disabled={!selectedFood || !foodOptions.length || qty <= 0} onClick={()=>addPantry(selectedFood, qty)}>Ajouter</button></div><div className="card span-8"><h2>Placard / frigo</h2><div className="list">{state.pantry.map(p=>{const f=findFoodAny(p.foodId); return <div className="item space" key={p.id}><span>{f?.name} · {formatQuantity(f, p.qty, p.displayQty, p.displayUnit)}</span><button className="btn danger" onClick={()=>setState(s=>({...s,pantry:s.pantry.filter(x=>x.id!==p.id)}))}>Retirer</button></div>})}</div></div></section>}
+    {tab === "placard" && <section className="grid"><div className="card span-4"><h2>Ajouter au placard</h2><input value={pantryQuery} onChange={e=>setPantryQuery(e.target.value)} placeholder="Rechercher un aliment"/><select value={pantrySelectedFood} disabled={!pantryOptions.length} onChange={e=>setPantrySelectedFood(e.target.value)}>{!pantryOptions.length ? <option value="">Aucun aliment trouvé</option> : pantryOptions.map(f=><option key={f.id} value={f.id}>{f.name}</option>)}</select>{!pantryOptions.length && <p className="form-help bad-text">Aucun aliment trouvé pour ce filtre.</p>}<QuantityPicker value={pantryQty} onChange={setPantryQty} food={pantrySelectedObj}/><button className="btn" disabled={!pantrySelectedFood || !pantryOptions.length || pantryQty <= 0} onClick={()=>addPantry(pantrySelectedFood, pantryQty)}>Ajouter</button></div><div className="card span-8"><h2>Placard / frigo</h2><div className="list">{state.pantry.map(p=>{const f=findFoodAny(p.foodId); return <div className="item space" key={p.id}><span>{f?.name} · {formatQuantity(f, p.qty, p.displayQty, p.displayUnit)}</span><button className="btn danger" onClick={()=>setState(s=>({...s,pantry:s.pantry.filter(x=>x.id!==p.id)}))}>Retirer</button></div>})}</div></div></section>}
 
     {tab === "poids" && <section className="grid"><div className="card span-4"><h2>Pesée à jeun</h2><label>Poids du matin (kg)</label><input type="text" inputMode="decimal" placeholder="ex. 70,90" value={weightInput} onChange={e=>setWeightInput(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'){const w=frNum(weightInput,0); if(w>0){addWeight(w); setWeightInput("");}}}}/><button className="btn" style={{marginTop:8}} disabled={frNum(weightInput,0)<=0} onClick={()=>{const w=frNum(weightInput,0); if(w>0){addWeight(w); setWeightInput("");}}}>Ajouter pesée</button></div><div className="card span-8"><h2>Suivi du poids</h2><p>Moyenne 7 jours : <strong>{average7(state.weights) ?? "—"} kg</strong></p><p className="notice">{activeProfile ? weightTrendRecommendation(activeProfile, state.weights) : "Crée un profil pour obtenir une recommandation."}</p><WeightChart weights={state.weights}/><div className="list">{state.weights.slice(-10).reverse().map(w=><div className="item" key={w.id}>{w.date} · {w.weightKg} kg · <span className="muted">{w.note}</span></div>)}</div></div></section>}
 
@@ -624,6 +641,7 @@ export default function MacroTrackerApp() {
     <MacroInfoModal macro={macroInfo} onClose={()=>setMacroInfo(null)} />
     <CreateRecipeModal open={createRecipeOpen} onClose={()=>setCreateRecipeOpen(false)} onSave={addCustomRecipe} />
     <MicroDetailModal micro={microDetail} onClose={()=>setMicroDetail(null)} />
+    {toast && <div className="toast" role="status">{toast}</div>}
 
     <nav className="bottom-nav">
       <button className={`bn-item ${tab==="dashboard"?"active":""}`} onClick={()=>setTab("dashboard")}><span className="bn-ico">🏠</span>Accueil</button>
