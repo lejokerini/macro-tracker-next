@@ -6,8 +6,7 @@ import { toEditableItem, type EditableScanItem, type ScanItem } from "@/lib/cals
 
 const MEALS: MealType[] = ["Petit-déjeuner", "Déjeuner", "Dîner", "Collation"];
 
-// Limite d'analyses photo/texte par jour et par appareil (protège le quota partagé de l'API).
-const SNAP_DAILY_LIMIT = 12;
+// Comptage des analyses photo/texte par jour et par appareil (protège le quota partagé de l'API).
 function snapDayKey() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -72,6 +71,8 @@ export default function SnapModal({
   onScanBarcode,
   defaultMeal,
   date,
+  dailyLimit = 12,
+  isPremium = false,
 }: {
   open: boolean;
   onClose: () => void;
@@ -79,6 +80,8 @@ export default function SnapModal({
   onScanBarcode?: () => void;
   defaultMeal: MealType;
   date: string;
+  dailyLimit?: number;
+  isPremium?: boolean;
 }) {
   const [preview, setPreview] = useState("");
   const [loading, setLoading] = useState(false);
@@ -140,9 +143,11 @@ export default function SnapModal({
   }
 
   async function runAnalysis(payload: { file?: File | null; text?: string; hint?: string }) {
-    if (getSnapUsage() >= SNAP_DAILY_LIMIT) {
+    if (getSnapUsage() >= dailyLimit) {
       setLoading(false);
-      setError(`Tu as atteint ta limite de ${SNAP_DAILY_LIMIT} analyses photo aujourd'hui. Scanne un code-barres ou cherche l'aliment (illimités et gratuits), ou réessaie demain.`);
+      setError(isPremium
+        ? `Limite quotidienne atteinte (${dailyLimit} analyses). Réessaie demain, ou utilise le code-barres / la recherche.`
+        : `Limite du plan gratuit atteinte (${dailyLimit} analyses photo/jour). Passe en Premium pour la photo illimitée — ou utilise le scan code-barres / la recherche (gratuits et illimités).`);
       return;
     }
     setLoading(true);

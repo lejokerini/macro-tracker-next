@@ -1,5 +1,5 @@
 // Service worker minimal CalSnap — rend l'app installable et utilisable hors-ligne (coquille).
-const CACHE = "calsnap-cache-v1";
+const CACHE = "calsnap-cache-v2";
 
 self.addEventListener("install", () => {
   self.skipWaiting();
@@ -32,7 +32,7 @@ self.addEventListener("fetch", (event) => {
       } catch {
         const cached = await caches.match(req);
         if (cached) return cached;
-        const fallback = await caches.match("/");
+        const fallback = await caches.match("/app");
         return fallback || Response.error();
       }
     })(),

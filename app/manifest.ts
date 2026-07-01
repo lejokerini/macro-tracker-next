@@ -5,7 +5,7 @@ export default function manifest(): MetadataRoute.Manifest {
     name: "Macrolens",
     short_name: "Macrolens",
     description: "Prends ton repas en photo, Macrolens estime les calories et les macros.",
-    start_url: "/",
+    start_url: "/app",
     scope: "/",
     display: "standalone",
     orientation: "portrait",
