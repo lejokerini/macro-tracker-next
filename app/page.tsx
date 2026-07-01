@@ -55,10 +55,11 @@ export default function LandingPage() {
             </a>
           </div>
           <div className="lp-badges">
-            <span>🇫🇷 Données Ciqual</span>
-            <span>🚫 Sans pub</span>
-            <span>🔒 Tes données t&apos;appartiennent</span>
-            <span>✨ Gratuit</span>
+            <span>Données Ciqual officielles</span>
+            <span>Sources scientifiques citées</span>
+            <span>Sans publicité</span>
+            <span>Tes données t&apos;appartiennent</span>
+            <span>Gratuit</span>
           </div>
         </div>
 
@@ -128,8 +129,8 @@ export default function LandingPage() {
             <span className="lp-step-num">3</span>
             <h3>Suis tes progrès</h3>
             <p>
-              Journal, objectifs, poids, IMC et séries quotidiennes 🔥 pour
-              garder le cap sans effort.
+              Journal, objectifs, poids, IMC et séries quotidiennes pour garder
+              le cap sans effort.
             </p>
           </div>
         </div>
@@ -140,15 +141,13 @@ export default function LandingPage() {
         <h2 className="lp-h2">Pourquoi Macrolens</h2>
         <div className="lp-features">
           <div className="lp-feature">
-            <span className="lp-feature-ico">📸</span>
-            <h3>Photo → calories</h3>
+            <h3>Photo, calories, macros</h3>
             <p>
-              La reconnaissance de repas te fait gagner un temps fou — l&apos;une
-              des seules apps françaises à l&apos;offrir gratuitement.
+              La reconnaissance de repas te fait gagner un temps fou. C&apos;est
+              l&apos;une des seules apps françaises à l&apos;offrir gratuitement.
             </p>
           </div>
           <div className="lp-feature">
-            <span className="lp-feature-ico">🇫🇷</span>
             <h3>Données officielles</h3>
             <p>
               Base <strong>Ciqual (ANSES)</strong> et Open Food Facts : des
@@ -156,15 +155,15 @@ export default function LandingPage() {
             </p>
           </div>
           <div className="lp-feature">
-            <span className="lp-feature-ico">💪</span>
-            <h3>Macros précises</h3>
+            <h3>Fondé sur la science</h3>
             <p>
-              Besoins calculés (Mifflin-St Jeor / Katch-McArdle), protéines au
-              choix par kg, fibres et micronutriments.
+              Besoins calculés avec des formules validées (Mifflin-St Jeor,
+              Katch-McArdle), protéines par kg, fibres et micronutriments.
+              Chaque recommandation cite ses <strong>sources scientifiques</strong>{" "}
+              directement dans l&apos;app.
             </p>
           </div>
           <div className="lp-feature">
-            <span className="lp-feature-ico">🍽️</span>
             <h3>Programmes &amp; recettes</h3>
             <p>
               Des programmes adaptés à ta cible calorique, avec recettes,
@@ -172,7 +171,6 @@ export default function LandingPage() {
             </p>
           </div>
           <div className="lp-feature">
-            <span className="lp-feature-ico">📷</span>
             <h3>Code-barres</h3>
             <p>
               Scanne un produit et récupère Nutri-Score, NOVA et composition en
@@ -180,7 +178,6 @@ export default function LandingPage() {
             </p>
           </div>
           <div className="lp-feature">
-            <span className="lp-feature-ico">🔒</span>
             <h3>Respect de tes données</h3>
             <p>
               Aucune publicité, aucun pistage. Tes données restent sous ton
@@ -216,7 +213,7 @@ export default function LandingPage() {
           <a href="mailto:contact.macrolens@gmail.com">Contact</a>
         </nav>
         <p className="lp-footer-copy">
-          © {new Date().getFullYear()} Macrolens · Fait avec soin en France
+          © {new Date().getFullYear()} Macrolens · Conçu en France
         </p>
       </footer>
     </main>
