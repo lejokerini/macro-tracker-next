@@ -53,7 +53,7 @@ export type Profile = {
   likedFoods: string[];
   trainingDays: number[];
   intermittentFasting?: boolean;
-  fasting?: "none" | "16_8" | "18_6" | "20_4" | "omad";
+  fasting?: "none" | "window_am" | "window_pm" | "omad";
   avoidSoy?: boolean;
   maxPrepTime: number;
   cookingLevel: "etudiant" | "normal" | "meal_prep" | "famille";
