@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
-import { ensureCiqualLoaded, estimateServingGrams, findFood, foods, formatQuantity, isPieceInput, quantityToNutritionGrams, searchFoods, STORES, unitLabel } from "@/lib/food-engine";
+import { ensureCiqualLoaded, estimateServingGrams, findFood, foods, formatQuantity, isPieceInput, quantityToNutritionGrams, searchFoods, STORES } from "@/lib/food-engine";
 import { average7, calculateTargets, logMacros, recipeMacros, sumIngredients, weightTrendRecommendation } from "@/lib/nutrition";
 import { buildShoppingList, generateProgram, scoreProgram } from "@/lib/planner";
 import { seedRecipes } from "@/data/recipes";
@@ -76,6 +76,13 @@ function frNum(v: FormDataEntryValue | string | null | undefined, fallback: numb
   const x = Number(String(v ?? "").replace(",", ".").trim());
   return Number.isFinite(x) ? x : fallback;
 }
+// Convertit une quantité saisie (pièce / g / cl) en grammes pour les calculs.
+function qtyToGrams(food: Food | undefined, qty: number, unit: "piece" | "g" | "cl") {
+  if (!food) return qty;
+  if (unit === "piece") return qty * estimateServingGrams(food);
+  if (unit === "cl") return qty * 10;
+  return qty;
+}
 
 function macrosFromBaseGrams(food: Food | undefined, baseGrams: number) {
   const ratio = Math.max(0, Number.isFinite(baseGrams) ? baseGrams : 0) / 100;
@@ -88,13 +95,6 @@ function macrosFromBaseGrams(food: Food | undefined, baseGrams: number) {
     fiber: +(food.macros.fiber * ratio).toFixed(1),
     grams: Math.round(baseGrams),
   };
-}
-function scaledFoodMacros(food: Food | undefined, inputQty: number) {
-  return macrosFromBaseGrams(food, quantityToNutritionGrams(food, inputQty));
-}
-function scaledMicros(food: Food | undefined, inputQty: number) {
-  const grams = quantityToNutritionGrams(food, inputQty);
-  return scaledMicrosFromBase(food, grams);
 }
 function scaledMicrosFromBase(food: Food | undefined, baseGrams: number) {
   if (!food?.micros) return {} as Partial<Record<MicroKey, number>>;
@@ -148,6 +148,7 @@ export default function MacroTrackerApp() {
   const [selectedMeal, setSelectedMeal] = useState<MealType>("Déjeuner");
   const [selectedFood, setSelectedFood] = useState("");
   const [qty, setQty] = useState(100);
+  const [journalUnit, setJournalUnit] = useState<"piece" | "g" | "cl">("g");
   const [recipeQuery, setRecipeQuery] = useState("");
   const [recipeMealFilter, setRecipeMealFilter] = useState<"all" | MealType>("all");
   const [onlyMealPrep, setOnlyMealPrep] = useState(false);
@@ -279,11 +280,18 @@ export default function MacroTrackerApp() {
   const selectedFoodObj = selectedFood ? findFoodAny(selectedFood) : undefined;
   useEffect(() => {
     if (!selectedFoodObj) return;
-    setQty(isPieceInput(selectedFoodObj) ? 1 : 100);
+    const u: "piece" | "g" | "cl" = isPieceInput(selectedFoodObj) ? "piece" : selectedFoodObj.unit === "ml" ? "cl" : "g";
+    setJournalUnit(u);
+    setQty(u === "piece" ? 1 : u === "cl" ? 25 : 100);
   }, [selectedFoodObj?.id]);
+  function changeJournalUnit(u: "piece" | "g" | "cl") {
+    setJournalUnit(u);
+    setQty(u === "piece" ? 1 : u === "cl" ? 25 : 100);
+  }
 
-  const selectedPreview = scaledFoodMacros(selectedFoodObj, qty);
-  const selectedMicros = scaledMicros(selectedFoodObj, qty);
+  const selectedBaseGrams = qtyToGrams(selectedFoodObj, qty, journalUnit);
+  const selectedPreview = macrosFromBaseGrams(selectedFoodObj, selectedBaseGrams);
+  const selectedMicros = scaledMicrosFromBase(selectedFoodObj, selectedBaseGrams);
   const dayLogs = state.logs.filter(l => l.date === date);
   const totals = useMemo(() => {
     return state.logs.filter(l => l.date === date).reduce((acc, l) => {
@@ -386,9 +394,9 @@ export default function MacroTrackerApp() {
   function addFoodLog() {
     const food = selectedFood ? findFoodAny(selectedFood) : undefined;
     if (!food || !foodOptions.some(f => f.id === selectedFood)) { showToast("Choisis un aliment valide dans la liste."); return; }
-    const baseQty = quantityToNutritionGrams(food, qty);
+    const baseQty = qtyToGrams(food, qty, journalUnit);
     rememberOpenFoodFactsFood(food);
-    setState(s => ({ ...s, offFoods: food.source === "openfoodfacts" && !(s.offFoods || []).some(f => f.id === food.id) ? [...(s.offFoods || []), food] : (s.offFoods || []), logs: [...s.logs, { id: uid("log"), foodId: selectedFood, qty: baseQty, displayQty: qty, displayUnit: isPieceInput(food) ? "piece" : food.unit, meal: selectedMeal, date }] }));
+    setState(s => ({ ...s, offFoods: food.source === "openfoodfacts" && !(s.offFoods || []).some(f => f.id === food.id) ? [...(s.offFoods || []), food] : (s.offFoods || []), logs: [...s.logs, { id: uid("log"), foodId: selectedFood, qty: baseQty, displayQty: qty, displayUnit: journalUnit, meal: selectedMeal, date }] }));
   }
   function addCustomRecipe(recipe: Recipe) {
     setState(s => ({ ...s, recipes: [recipe, ...s.recipes] }));
@@ -621,7 +629,7 @@ export default function MacroTrackerApp() {
     </form></div><div className="card span-4"><h3>Profils existants</h3><div className="list">{state.profiles.map(p=><div className="item" key={p.id}><div className="space"><strong>{p.firstName} {p.lastName}</strong><button className="btn secondary" onClick={()=>setState(s=>({...s,activeProfileId:p.id}))}>Activer</button></div><span className="muted">{p.goal} · {p.diet}</span><div className="row" style={{marginTop:8}}><button className="btn danger" onClick={()=>{if(confirm("Supprimer ce profil ?")) setState(s=>({ ...s, profiles: s.profiles.filter(x=>x.id!==p.id), activeProfileId: s.activeProfileId === p.id ? undefined : s.activeProfileId }))}}>Supprimer</button></div></div>)}</div>{!state.profiles.length && <p className="muted">Aucun profil pour le moment.</p>}</div></section>}
 
     {tab === "journal" && <section className="grid">
-      <div className="card span-4"><h2>Ajouter</h2><button className="btn snap-cta" onClick={()=>setSnapOpen(true)}>📸 Snap mon repas (photo → calories)</button><button className="btn secondary snap-cta" onClick={()=>setBarcodeOpen(true)}>🏷️ Scanner un code-barres</button><label>Date</label><input type="date" value={date} onChange={e=>setDate(e.target.value)} /><label>Repas</label><select value={selectedMeal} onChange={e=>setSelectedMeal(e.target.value as MealType)}>{MEALS.map(m=><option key={m}>{m}</option>)}</select>{(favoriteFoods.length > 0 || recentFoods.length > 0) && <div className="quick-foods">{favoriteFoods.length > 0 && <><div className="quick-foods-title">★ Favoris</div><div className="quick-foods-row">{favoriteFoods.slice(0,8).map(f=><button type="button" key={f.id} className="quick-food-chip" onClick={()=>quickAddFood(f)} title="Ajouter au journal"><span>{foodIcon(f)}</span>{f.name}</button>)}</div></>}{recentFoods.length > 0 && <><div className="quick-foods-title">Récents</div><div className="quick-foods-row">{recentFoods.slice(0,8).map(f=><button type="button" key={f.id} className="quick-food-chip" onClick={()=>quickAddFood(f)} title="Ajouter au journal"><span>{foodIcon(f)}</span>{f.name}</button>)}</div></>}</div>}<label>Recherche</label><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="marque, produit ou code-barres..."/><p className="form-help">Recherche locale + Open Food Facts pour les produits de marque.</p>{offLoading && <p className="form-help">Recherche Open Food Facts en cours...</p>}{offError && <p className="form-help bad-text">{offError}</p>}<ProductResults foods={foodOptions.slice(0,10)} selectedId={selectedFood} onSelect={setSelectedFood}/>{!foodOptions.length && !offLoading && <p className="form-help bad-text">Aucun résultat : l'application n’ajoute rien par défaut.</p>}{selectedFoodObj && <ProductCard food={selectedFoodObj} qty={qty} macros={selectedPreview} isFavorite={(state.favorites||[]).includes(selectedFoodObj.id)} onToggleFavorite={()=>toggleFavorite(selectedFoodObj)}/>}<QuantityPicker value={qty} onChange={setQty} food={selectedFoodObj}/><div className="macro-preview"><span>{selectedPreview.kcal} kcal</span><span>P {selectedPreview.protein}g</span><span>G {selectedPreview.carbs}g</span><span>L {selectedPreview.fat}g</span><span>Fibres {selectedPreview.fiber}g</span></div><MicroPanel title="Vitamines & minéraux de l'aliment" micros={selectedMicros} onInfo={setMicroDetail}/><button className="btn" disabled={!selectedFood || !foodOptions.length || qty <= 0} onClick={addFoodLog}>Ajouter au journal</button></div>
+      <div className="card span-4"><h2>Ajouter</h2><button className="btn snap-cta" onClick={()=>setSnapOpen(true)}>📸 Snap mon repas (photo → calories)</button><button className="btn secondary snap-cta" onClick={()=>setBarcodeOpen(true)}>🏷️ Scanner un code-barres</button><label>Date</label><input type="date" value={date} onChange={e=>setDate(e.target.value)} /><label>Repas</label><select value={selectedMeal} onChange={e=>setSelectedMeal(e.target.value as MealType)}>{MEALS.map(m=><option key={m}>{m}</option>)}</select>{(favoriteFoods.length > 0 || recentFoods.length > 0) && <div className="quick-foods">{favoriteFoods.length > 0 && <><div className="quick-foods-title">★ Favoris</div><div className="quick-foods-row">{favoriteFoods.slice(0,8).map(f=><button type="button" key={f.id} className="quick-food-chip" onClick={()=>quickAddFood(f)} title="Ajouter au journal"><span>{foodIcon(f)}</span>{f.name}</button>)}</div></>}{recentFoods.length > 0 && <><div className="quick-foods-title">Récents</div><div className="quick-foods-row">{recentFoods.slice(0,8).map(f=><button type="button" key={f.id} className="quick-food-chip" onClick={()=>quickAddFood(f)} title="Ajouter au journal"><span>{foodIcon(f)}</span>{f.name}</button>)}</div></>}</div>}<label>Recherche</label><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="marque, produit ou code-barres..."/><p className="form-help">Recherche locale + Open Food Facts pour les produits de marque.</p>{offLoading && <p className="form-help">Recherche Open Food Facts en cours...</p>}{offError && <p className="form-help bad-text">{offError}</p>}<ProductResults foods={foodOptions.slice(0,10)} selectedId={selectedFood} onSelect={setSelectedFood}/>{!foodOptions.length && !offLoading && <p className="form-help bad-text">Aucun résultat : l'application n’ajoute rien par défaut.</p>}{selectedFoodObj && <ProductCard food={selectedFoodObj} qty={qty} macros={selectedPreview} isFavorite={(state.favorites||[]).includes(selectedFoodObj.id)} onToggleFavorite={()=>toggleFavorite(selectedFoodObj)}/>}<QuantityPicker value={qty} onChange={setQty} food={selectedFoodObj} unit={journalUnit} onUnitChange={changeJournalUnit}/><div className="macro-preview"><span>{selectedPreview.kcal} kcal</span><span>P {selectedPreview.protein}g</span><span>G {selectedPreview.carbs}g</span><span>L {selectedPreview.fat}g</span><span>Fibres {selectedPreview.fiber}g</span></div><MicroPanel title="Vitamines & minéraux de l'aliment" micros={selectedMicros} onInfo={setMicroDetail}/><button className="btn" disabled={!selectedFood || !foodOptions.length || qty <= 0} onClick={addFoodLog}>Ajouter au journal</button></div>
       <div className="card span-8"><h2>Journal du {date}</h2><div className="row" style={{margin:"2px 0 10px"}}><span className="muted">Dupliquer ce jour vers :</span><input type="date" value={copyDate} onChange={e=>setCopyDate(e.target.value)} style={{maxWidth:160}}/><button className="btn secondary" onClick={()=>duplicateDay(copyDate)} disabled={!dayLogs.length}>Copier</button></div><div className="pillbar"><div className="kpi">Kcal <strong>{totals.kcal}</strong></div><div className="kpi">P <strong>{totals.protein}g</strong></div><div className="kpi">G <strong>{totals.carbs}g</strong></div><div className="kpi">L <strong>{totals.fat}g</strong></div></div><MicroPanel title="Micros cumulés du jour" micros={microsToday} onInfo={setMicroDetail}/>{MEALS.map(m=><div className="meal" key={m} style={{marginTop:12}}><div className="meal-head">{m}</div><div className="meal-body list">{dayLogs.filter(l=>l.meal===m).map(l=>{const f=findFoodAny(l.foodId); const kcal = f ? macrosFromBaseGrams(f,l.qty).kcal : 0; return <div className="item space" key={l.id}><span>{f?.name} · {formatQuantity(f, l.qty, l.displayQty, l.displayUnit)} {f && <span className="muted">· {kcal} kcal</span>}</span><div className="row" style={{gap:6}}><button className="qty-btn qty-btn-sm" onClick={()=>adjustLog(l, l.displayUnit==="piece"?-1:-10)} aria-label="Diminuer">−</button><button className="qty-btn qty-btn-sm" onClick={()=>adjustLog(l, l.displayUnit==="piece"?1:10)} aria-label="Augmenter">+</button><button className="btn danger" onClick={()=>removeLog(l.id)}>Retirer</button></div></div>})}</div></div>)}</div>
     </section>}
 
@@ -688,20 +696,24 @@ export default function MacroTrackerApp() {
   </main>;
 }
 
-function QuantityPicker({ value, onChange, food }: { value: number; onChange: (value: number) => void; food?: Food }) {
-  const unit = unitLabel(food);
-  const isPiece = isPieceInput(food);
-  const quickValues = isPiece ? [1, 2, 3, 4, 6, 10] : [25, 50, 75, 100, 150, 200, 250, 300, 500];
+function QuantityPicker({ value, onChange, food, unit, onUnitChange }: { value: number; onChange: (value: number) => void; food?: Food; unit?: "piece" | "g" | "cl"; onUnitChange?: (u: "piece" | "g" | "cl") => void }) {
+  const controlled = unit !== undefined && onUnitChange !== undefined;
+  const effUnit: "piece" | "g" | "cl" | "ml" = controlled ? unit! : (isPieceInput(food) ? "piece" : food?.unit === "ml" ? "ml" : "g");
+  const isPiece = effUnit === "piece";
+  const quickValues = isPiece ? [1, 2, 3, 4, 6, 10] : effUnit === "cl" ? [10, 15, 20, 25, 33, 50] : [25, 50, 75, 100, 150, 200, 250, 300, 500];
+  const stepV = isPiece ? 1 : effUnit === "cl" ? 5 : 10;
+  const pill = isPiece ? `${food?.servingLabel || "pièce"}(s)` : effUnit;
   const safeChange = (next: number) => onChange(Math.max(0, Math.round((Number.isFinite(next) ? next : 0) * 10) / 10));
   return <div className="quantity-card">
-    <div className="space"><label style={{margin:0}}>Quantité</label><span className="muted">{isPiece ? `1 pièce ≈ ${estimateServingGrams(food)} g · calcul Ciqual ajusté` : "Base nutritionnelle : 100 g/ml, calcul ajusté automatiquement"}</span></div>
+    {controlled && <div className="unit-select"><span className="muted">Unité :</span>{(["piece", "g", "cl"] as const).map(u2 => <button key={u2} type="button" className={`filter-chip ${unit === u2 ? "active" : ""}`} onClick={() => onUnitChange!(u2)}>{u2 === "piece" ? "Pièce" : u2}</button>)}</div>}
+    <div className="space"><label style={{margin:0}}>Quantité</label><span className="muted">{isPiece ? `1 ${food?.servingLabel || "pièce"} ≈ ${estimateServingGrams(food)} g` : "Base 100 g/ml, calcul ajusté"}</span></div>
     <div className="quantity-row">
-      <button type="button" className="qty-btn" onClick={()=>safeChange(value - (isPiece ? 1 : 10))}>−</button>
-      <input type="number" min="0" step={isPiece ? 1 : 1} value={value} onChange={e=>safeChange(Number(e.target.value))}/>
-      <span className="unit-pill">{unit}</span>
-      <button type="button" className="qty-btn" onClick={()=>safeChange(value + (isPiece ? 1 : 10))}>+</button>
+      <button type="button" className="qty-btn" onClick={()=>safeChange(value - stepV)}>−</button>
+      <input type="number" min="0" value={value} onChange={e=>safeChange(Number(e.target.value))}/>
+      <span className="unit-pill">{pill}</span>
+      <button type="button" className="qty-btn" onClick={()=>safeChange(value + stepV)}>+</button>
     </div>
-    <div className="quick-qty">{quickValues.map(q => <button type="button" key={q} className={value===q ? "active" : ""} onClick={()=>safeChange(q)}>{q}{isPiece ? "" : "g"}</button>)}</div>
+    <div className="quick-qty">{quickValues.map(q => <button type="button" key={q} className={value===q ? "active" : ""} onClick={()=>safeChange(q)}>{q}{isPiece ? "" : effUnit}</button>)}</div>
   </div>;
 }
 
