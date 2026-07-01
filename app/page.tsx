@@ -17,6 +17,13 @@ export const metadata: Metadata = {
 export default function LandingPage() {
   return (
     <main className="lp">
+      {/* Si l'app est lancée en mode installé (PWA), aller directement au tracker. */}
+      <script
+        dangerouslySetInnerHTML={{
+          __html:
+            "try{if(window.matchMedia('(display-mode: standalone)').matches||window.matchMedia('(display-mode: fullscreen)').matches||window.navigator.standalone){location.replace('/app');}}catch(e){}",
+        }}
+      />
       {/* En-tête */}
       <header className="lp-nav">
         <div className="lp-logo">
