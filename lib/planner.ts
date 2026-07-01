@@ -17,12 +17,12 @@ export function isRecipeAllowed(recipe: Recipe, profile: Profile) {
 function mealDistribution(profile: Profile): { mealType: MealType; ratio: number }[] {
   const fasting = profile.fasting || (profile.intermittentFasting ? "16_8" : "none");
   switch (fasting) {
-    case "16_8": // fenêtre 8h : pas de petit-déjeuner
-      return [{ mealType: "Déjeuner", ratio: 0.45 }, { mealType: "Dîner", ratio: 0.40 }, { mealType: "Collation", ratio: 0.15 }];
-    case "18_6": // fenêtre 6h
-      return [{ mealType: "Déjeuner", ratio: 0.50 }, { mealType: "Dîner", ratio: 0.40 }, { mealType: "Collation", ratio: 0.10 }];
-    case "20_4": // fenêtre 4h (Warrior) : 2 repas
-      return [{ mealType: "Déjeuner", ratio: 0.55 }, { mealType: "Dîner", ratio: 0.45 }];
+    case "16_8": // fenêtre 8h : pas de petit-déjeuner → déjeuner, dîner, collation
+      return [{ mealType: "Déjeuner", ratio: 0.40 }, { mealType: "Dîner", ratio: 0.40 }, { mealType: "Collation", ratio: 0.20 }];
+    case "18_6": // fenêtre 6h : 2 repas, sans collation
+      return [{ mealType: "Déjeuner", ratio: 0.50 }, { mealType: "Dîner", ratio: 0.50 }];
+    case "20_4": // fenêtre 4h (Warrior) : repas léger + gros dîner
+      return [{ mealType: "Déjeuner", ratio: 0.30 }, { mealType: "Dîner", ratio: 0.70 }];
     case "omad": // un seul repas par jour
       return [{ mealType: "Dîner", ratio: 1 }];
     default:
