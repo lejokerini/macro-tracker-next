@@ -15,20 +15,19 @@ export function isRecipeAllowed(recipe: Recipe, profile: Profile) {
 
 // Répartition des calories de la journée par repas (la somme des ratios fait 1).
 function mealDistribution(profile: Profile): { mealType: MealType; ratio: number }[] {
-  if (profile.intermittentFasting) {
-    // Jeûne intermittent 16:8 : pas de petit-déjeuner, calories concentrées sur la fenêtre.
-    return [
-      { mealType: "Déjeuner", ratio: 0.45 },
-      { mealType: "Dîner", ratio: 0.40 },
-      { mealType: "Collation", ratio: 0.15 },
-    ];
+  const fasting = profile.fasting || (profile.intermittentFasting ? "16_8" : "none");
+  switch (fasting) {
+    case "16_8": // fenêtre 8h : pas de petit-déjeuner
+      return [{ mealType: "Déjeuner", ratio: 0.45 }, { mealType: "Dîner", ratio: 0.40 }, { mealType: "Collation", ratio: 0.15 }];
+    case "18_6": // fenêtre 6h
+      return [{ mealType: "Déjeuner", ratio: 0.50 }, { mealType: "Dîner", ratio: 0.40 }, { mealType: "Collation", ratio: 0.10 }];
+    case "20_4": // fenêtre 4h (Warrior) : 2 repas
+      return [{ mealType: "Déjeuner", ratio: 0.55 }, { mealType: "Dîner", ratio: 0.45 }];
+    case "omad": // un seul repas par jour
+      return [{ mealType: "Dîner", ratio: 1 }];
+    default:
+      return [{ mealType: "Petit-déjeuner", ratio: 0.25 }, { mealType: "Déjeuner", ratio: 0.35 }, { mealType: "Dîner", ratio: 0.30 }, { mealType: "Collation", ratio: 0.10 }];
   }
-  return [
-    { mealType: "Petit-déjeuner", ratio: 0.25 },
-    { mealType: "Déjeuner", ratio: 0.35 },
-    { mealType: "Dîner", ratio: 0.30 },
-    { mealType: "Collation", ratio: 0.10 },
-  ];
 }
 
 export function generateProgram(profile: Profile, recipes: Recipe[], days = 7): ProgramMeal[] {
