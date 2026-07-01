@@ -4,15 +4,21 @@ import { useEffect, useRef, useState } from "react";
 import { BrowserMultiFormatReader, type IScannerControls } from "@zxing/browser";
 import type { Food, MealType } from "@/lib/types";
 import { fetchOpenFoodFactsByBarcode } from "@/lib/openfoodfacts";
-import { estimateServingGrams, isPieceInput, quantityToNutritionGrams, unitLabel } from "@/lib/food-engine";
+import { estimateServingGrams, isPieceInput } from "@/lib/food-engine";
 
 const MEALS: MealType[] = ["Petit-déjeuner", "Déjeuner", "Dîner", "Collation"];
 
 type Phase = "scan" | "fetching" | "found" | "notfound" | "error";
+type QUnit = "piece" | "g" | "cl";
 
-function scaledMacros(food: Food, qty: number) {
-  const grams = quantityToNutritionGrams(food, qty);
-  const f = grams / 100;
+// Convertit la quantité saisie (dans l'unité choisie) en grammes pour les calculs.
+function toBaseGrams(food: Food, qty: number, unit: QUnit) {
+  if (unit === "piece") return qty * estimateServingGrams(food);
+  if (unit === "cl") return qty * 10; // 1 cl ≈ 10 g/ml
+  return qty; // g
+}
+function macrosFor(food: Food, grams: number) {
+  const f = Math.max(0, grams) / 100;
   return {
     grams: Math.round(grams),
     kcal: Math.round(food.macros.kcal * f),
@@ -20,6 +26,10 @@ function scaledMacros(food: Food, qty: number) {
     carbs: Math.round(food.macros.carbs * f * 10) / 10,
     fat: Math.round(food.macros.fat * f * 10) / 10,
   };
+}
+function unitLabelOf(unit: QUnit, food: Food) {
+  if (unit === "piece") return `${food.servingLabel || "pièce"}(s)`;
+  return unit;
 }
 
 export default function BarcodeScanModal({
@@ -31,13 +41,14 @@ export default function BarcodeScanModal({
 }: {
   open: boolean;
   onClose: () => void;
-  onConfirm: (food: Food, qty: number, meal: MealType) => void;
+  onConfirm: (food: Food, baseGrams: number, displayQty: number, displayUnit: QUnit, meal: MealType) => void;
   defaultMeal: MealType;
   date: string;
 }) {
   const [phase, setPhase] = useState<Phase>("scan");
   const [product, setProduct] = useState<Food | null>(null);
   const [qty, setQty] = useState(100);
+  const [unit, setUnit] = useState<QUnit>("g");
   const [meal, setMeal] = useState<MealType>(defaultMeal);
   const [errorMsg, setErrorMsg] = useState("");
   const [lastCode, setLastCode] = useState("");
@@ -62,7 +73,9 @@ export default function BarcodeScanModal({
       const food = await fetchOpenFoodFactsByBarcode(clean);
       if (food) {
         setProduct(food);
-        setQty(isPieceInput(food) ? 1 : 100);
+        const defUnit: QUnit = isPieceInput(food) ? "piece" : food.unit === "ml" ? "cl" : "g";
+        setUnit(defUnit);
+        setQty(defUnit === "piece" ? 1 : defUnit === "cl" ? 25 : 100);
         setPhase("found");
       } else {
         setPhase("notfound");
@@ -125,9 +138,9 @@ export default function BarcodeScanModal({
     setPhase("scan");
   }
 
-  const preview = product ? scaledMacros(product, qty) : null;
-  const piece = product ? isPieceInput(product) : false;
-  const step = piece ? 1 : 10;
+  const baseGrams = product ? toBaseGrams(product, qty, unit) : 0;
+  const preview = product ? macrosFor(product, baseGrams) : null;
+  const step = unit === "piece" ? 1 : unit === "cl" ? 5 : 10;
 
   return (
     <div className="snap-overlay" role="dialog" aria-modal="true">
@@ -209,7 +222,7 @@ export default function BarcodeScanModal({
                 <h3>{product.name}</h3>
                 <p className="muted">
                   {product.brand ? `${product.brand} · ` : ""}Code {product.barcode}
-                  {piece ? ` · 1 ${product.servingLabel || "portion"} ≈ ${estimateServingGrams(product)} g` : ""}
+                  {unit === "piece" ? ` · 1 ${product.servingLabel || "portion"} ≈ ${estimateServingGrams(product)} g` : ""}
                 </p>
                 <div className="product-macros">
                   <span>{preview.kcal} kcal</span>
@@ -220,6 +233,19 @@ export default function BarcodeScanModal({
               </div>
             </div>
 
+            <div className="unit-select">
+              <span className="muted">Unité :</span>
+              {(["piece", "g", "cl"] as QUnit[]).map((u) => (
+                <button
+                  key={u}
+                  type="button"
+                  className={`filter-chip ${unit === u ? "active" : ""}`}
+                  onClick={() => { setUnit(u); setQty(u === "piece" ? 1 : u === "cl" ? 25 : 100); }}
+                >
+                  {u === "piece" ? "Pièce" : u}
+                </button>
+              ))}
+            </div>
             <div className="snap-item-row">
               <label>Quantité</label>
               <button className="qty-btn" onClick={() => setQty((q) => Math.max(0, Math.round((q - step) * 10) / 10))}>
@@ -231,12 +257,12 @@ export default function BarcodeScanModal({
                 value={qty}
                 onChange={(e) => setQty(Math.max(0, Number(e.target.value) || 0))}
               />
-              <span className="unit-pill">{unitLabel(product)}</span>
+              <span className="unit-pill">{unitLabelOf(unit, product)}</span>
               <button className="qty-btn" onClick={() => setQty((q) => Math.round((q + step) * 10) / 10)}>
                 +
               </button>
             </div>
-            {piece && <p className="muted" style={{ margin: "0 0 8px" }}>≈ {preview.grams} g au total</p>}
+            {unit !== "g" && <p className="muted" style={{ margin: "0 0 8px" }}>≈ {preview.grams} g au total</p>}
 
             <div className="snap-footer">
               <div className="snap-meal">
@@ -253,7 +279,7 @@ export default function BarcodeScanModal({
                   className="btn"
                   disabled={qty <= 0}
                   onClick={() => {
-                    onConfirm(product, qty, meal);
+                    onConfirm(product, toBaseGrams(product, qty, unit), qty, unit, meal);
                     close();
                   }}
                 >

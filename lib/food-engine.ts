@@ -339,11 +339,14 @@ export function quantityToNutritionGrams(food: Food | undefined, qty: number): n
   return safeQty;
 }
 
-export function formatQuantity(food: Food | undefined, baseQty: number, displayQty?: number, displayUnit?: "g" | "ml" | "piece") {
+export function formatQuantity(food: Food | undefined, baseQty: number, displayQty?: number, displayUnit?: "g" | "ml" | "cl" | "piece") {
   if (!food) return `${baseQty} g`;
   if (displayUnit === "piece" && typeof displayQty === "number") {
     const label = food.servingLabel || "pièce";
     return `${displayQty} ${displayQty > 1 ? `${label}s` : label} ≈ ${Math.round(baseQty)} g`;
+  }
+  if ((displayUnit === "cl" || displayUnit === "ml") && typeof displayQty === "number") {
+    return `${displayQty} ${displayUnit} ≈ ${Math.round(baseQty)} g`;
   }
   const unit = displayUnit || food.unit;
   if (unit === "piece" || (!displayUnit && isPieceInput(food))) {

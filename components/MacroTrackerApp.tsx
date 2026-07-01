@@ -414,12 +414,11 @@ export default function MacroTrackerApp() {
     setState(s => ({ ...s, offFoods: [...(s.offFoods || []), ...newFoods], logs: [...s.logs, ...newLogs] }));
     setTab("journal");
   }
-  function addBarcodeFood(food: Food, qtyInput: number, mealForItem: MealType) {
-    const baseQty = quantityToNutritionGrams(food, qtyInput);
+  function addBarcodeFood(food: Food, baseGrams: number, displayQty: number, displayUnit: "piece" | "g" | "cl", mealForItem: MealType) {
     setState(s => ({
       ...s,
       offFoods: (s.offFoods || []).some(f => f.id === food.id) ? (s.offFoods || []) : [...(s.offFoods || []), food],
-      logs: [...s.logs, { id: uid("log"), foodId: food.id, qty: baseQty, displayQty: qtyInput, displayUnit: isPieceInput(food) ? "piece" : food.unit, meal: mealForItem, date }],
+      logs: [...s.logs, { id: uid("log"), foodId: food.id, qty: baseGrams, displayQty, displayUnit, meal: mealForItem, date }],
     }));
     setTab("journal");
   }

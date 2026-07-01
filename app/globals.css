@@ -319,6 +319,7 @@ button,input,select,textarea{font:inherit}
 .program-arrow{flex:0 0 auto;font-size:24px;font-weight:900;color:var(--primary);opacity:.55}
 
 /* Filtres recettes (meal prep / sans soja) */
+.unit-select{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:10px 0 6px}
 .filter-chip{border:1px solid #d9e7cf;background:#fff;color:#3d5b34;border-radius:999px;padding:8px 13px;font-size:13px;font-weight:900;cursor:pointer;transition:.16s ease}
 .filter-chip:hover{transform:translateY(-1px)}
 .filter-chip.active{background:var(--primary);border-color:var(--primary);color:#fff}

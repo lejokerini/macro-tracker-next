@@ -59,7 +59,7 @@ export type Profile = {
 };
 
 export type Targets = { kcal: number; protein: number; carbs: number; fat: number; fiber: number };
-export type MealLogItem = { id: string; foodId: string; qty: number; meal: MealType; date: string; displayQty?: number; displayUnit?: "g" | "ml" | "piece" };
+export type MealLogItem = { id: string; foodId: string; qty: number; meal: MealType; date: string; displayQty?: number; displayUnit?: "g" | "ml" | "cl" | "piece" };
 export type PantryItem = { id: string; foodId: string; qty: number; unit: "g" | "ml" | "piece"; displayQty?: number; displayUnit?: "g" | "ml" | "piece"; expiresAt?: string };
 export type WeightLog = { id: string; date: string; weightKg: number; note?: string };
 export type RecipeIngredient = { foodId: string; qty: number };
