@@ -124,7 +124,25 @@ async function analyzeWithAnthropic(prompt: string, image: ImageInput, apiKey: s
   return textBlock && textBlock.type === "text" ? textBlock.text : "";
 }
 
+// N'accepte que les requêtes venant du même domaine que l'app (bloque les appels
+// directs / cross-site qui viendraient piller le quota). Vérifie que l'Origin (ou le
+// Referer) a le même host que la requête, sans domaine codé en dur.
+function sameOriginOnly(req: Request): boolean {
+  const host = req.headers.get("host");
+  if (!host) return true;
+  const src = req.headers.get("origin") || req.headers.get("referer");
+  if (!src) return false;
+  try {
+    return new URL(src).host === host;
+  } catch {
+    return false;
+  }
+}
+
 export async function POST(req: Request) {
+  if (!sameOriginOnly(req)) {
+    return NextResponse.json({ error: "Requête non autorisée." }, { status: 403 });
+  }
   const geminiKey = process.env.GEMINI_API_KEY?.trim();
   const anthropicKey = process.env.ANTHROPIC_API_KEY?.trim();
   if (!geminiKey && !anthropicKey) {
