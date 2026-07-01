@@ -108,7 +108,7 @@ export default function ConfidentialitePage() {
 
       <h2>13. Contact</h2>
       <p>
-        Pour toute question ou demande relative à tes données : <strong>[adresse e-mail de contact]</strong>.
+        Pour toute question ou demande relative à tes données : <strong>contact.macrolens@gmail.com</strong>.
       </p>
 
       <p style={{ marginTop: 24 }}>
