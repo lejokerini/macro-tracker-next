@@ -6,6 +6,28 @@ import { toEditableItem, type EditableScanItem, type ScanItem } from "@/lib/cals
 
 const MEALS: MealType[] = ["Petit-déjeuner", "Déjeuner", "Dîner", "Collation"];
 
+// Limite d'analyses photo/texte par jour et par appareil (protège le quota partagé de l'API).
+const SNAP_DAILY_LIMIT = 12;
+function snapDayKey() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+function getSnapUsage(): number {
+  try {
+    const raw = localStorage.getItem("macrolens-snap-usage");
+    if (!raw) return 0;
+    const obj = JSON.parse(raw) as { date?: string; count?: number };
+    return obj.date === snapDayKey() ? obj.count || 0 : 0;
+  } catch {
+    return 0;
+  }
+}
+function bumpSnapUsage() {
+  try {
+    localStorage.setItem("macrolens-snap-usage", JSON.stringify({ date: snapDayKey(), count: getSnapUsage() + 1 }));
+  } catch {}
+}
+
 const CONFIDENCE_LABEL: Record<EditableScanItem["confidence"], { text: string; color: string }> = {
   high: { text: "Confiance élevée", color: "#15803d" },
   medium: { text: "Confiance moyenne", color: "#b45309" },
@@ -118,8 +140,14 @@ export default function SnapModal({
   }
 
   async function runAnalysis(payload: { file?: File | null; text?: string; hint?: string }) {
+    if (getSnapUsage() >= SNAP_DAILY_LIMIT) {
+      setLoading(false);
+      setError(`Tu as atteint ta limite de ${SNAP_DAILY_LIMIT} analyses photo aujourd'hui. Scanne un code-barres ou cherche l'aliment (illimités et gratuits), ou réessaie demain.`);
+      return;
+    }
     setLoading(true);
     setError("");
+    bumpSnapUsage();
     try {
       const form = new FormData();
       if (payload.file) form.append("image", payload.file);
@@ -227,7 +255,17 @@ export default function SnapModal({
         )}
 
         {loading && <p className="snap-status">Analyse en cours…</p>}
-        {error && <p className="snap-status snap-error">{error}</p>}
+        {error && (
+          <div className="snap-fallback">
+            <p className="snap-status snap-error" style={{ margin: 0 }}>{error}</p>
+            {onScanBarcode && (
+              <div className="row" style={{ justifyContent: "center", marginTop: 8, flexWrap: "wrap" }}>
+                <button className="btn secondary" onClick={() => { reset(); onScanBarcode(); }}>🏷️ Scanner un code-barres</button>
+                <button className="btn secondary" onClick={close}>🔎 Chercher un aliment</button>
+              </div>
+            )}
+          </div>
+        )}
 
         {analyzed && items.length > 0 && (
           <>

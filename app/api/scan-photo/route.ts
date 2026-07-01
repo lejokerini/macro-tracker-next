@@ -111,7 +111,7 @@ async function analyzeWithGemini(prompt: string, image: ImageInput, apiKey: stri
       throw new Error(`Gemini HTTP ${res.status} ${detail.slice(0, 120)}`);
     }
   }
-  throw new Error(overloaded ? "Service d'analyse momentanément surchargé. Réessaie dans quelques secondes." : "Service d'analyse indisponible.");
+  throw new Error(overloaded ? "Service d'analyse occupé ou quota du jour atteint. Réessaie dans un moment, ou scanne le code-barres / cherche l'aliment (gratuit et illimité)." : "Service d'analyse indisponible pour le moment.");
 }
 
 async function analyzeWithAnthropic(prompt: string, image: ImageInput, apiKey: string): Promise<string> {
