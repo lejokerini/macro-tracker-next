@@ -13,17 +13,30 @@ export function calculateTargets(profile: Profile): Targets {
       ? 10 * profile.weightKg + 6.25 * profile.heightCm - 5 * profile.age + 5
       : 10 * profile.weightKg + 6.25 * profile.heightCm - 5 * profile.age - 161;
 
-  let kcal = bmr * profile.activity;
-  if (profile.goal === "perte") kcal -= 400;
-  if (profile.goal === "prise_masse") kcal += 350;
+  // Dépense énergétique totale (TDEE), puis ajustement selon l'objectif.
+  // Déficits/surplus en pourcentage du TDEE (plus physiologique qu'un forfait fixe).
+  const tdee = bmr * profile.activity;
+  let kcal = tdee;
+  if (profile.goal === "perte") kcal = tdee * 0.80;            // perte de poids : déficit ~20 %
+  else if (profile.goal === "seche") kcal = tdee * 0.85;       // sèche : déficit modéré ~15 % (préserve le muscle)
+  else if (profile.goal === "prise_masse") kcal = tdee * 1.10; // prise de masse : surplus ~10 %
+
+  // Plancher de sécurité : ne jamais descendre sous le métabolisme de base,
+  // ni sous un minimum absolu (≈ 1500 kcal homme / 1200 kcal femme).
+  const floorKcal = Math.max(bmr, profile.sex === "homme" ? 1500 : 1200);
+  if (profile.goal === "perte" || profile.goal === "seche") kcal = Math.max(kcal, floorKcal);
+
   kcal = Math.round(kcal / 10) * 10;
 
   // Protéines et lipides calés sur la masse maigre si connue, sinon le poids.
   // Les lipides ne gonflent PAS en prise de masse : le surplus va aux glucides (carburant).
-  const lossPhase = profile.goal === "perte";
+  const lossPhase = profile.goal === "perte" || profile.goal === "seche";
   const ref = lbm ?? profile.weightKg;
   // Protéines : choix de l'utilisateur (g/kg de poids de corps) sinon défaut selon objectif.
-  const defaultProteinPerKg = lbm ? (lossPhase ? 2.4 : 2.2) : (lossPhase ? 2.0 : 1.8);
+  // La sèche vise le plus de protéines (préservation musculaire pendant le déficit).
+  const defaultProteinPerKg = lbm
+    ? (profile.goal === "seche" ? 2.6 : lossPhase ? 2.4 : 2.2)
+    : (profile.goal === "seche" ? 2.2 : lossPhase ? 2.0 : 1.8);
   const fatPerKg = lbm ? 1.0 : 0.9;
   const protein = profile.proteinPerKg && profile.proteinPerKg > 0
     ? Math.round(profile.weightKg * profile.proteinPerKg)
@@ -52,7 +65,7 @@ export function weightTrendRecommendation(profile: Profile, weights: WeightLog[]
   const prev=sorted.slice(-14,-7), recent=sorted.slice(-7);
   const a=(x:WeightLog[])=>x.reduce((s,w)=>s+w.weightKg,0)/x.length;
   const delta=+(a(recent)-a(prev)).toFixed(2);
-  if(profile.goal === "perte") {
+  if(profile.goal === "perte" || profile.goal === "seche") {
     if(delta > -0.1) return `Tendance ${delta} kg/semaine : perte trop lente, envisage -100 à -150 kcal/j.`;
     if(delta < -0.8) return `Tendance ${delta} kg/semaine : perte rapide, envisage +100 kcal/j.`;
     return `Tendance ${delta} kg/semaine : rythme de perte correct.`;

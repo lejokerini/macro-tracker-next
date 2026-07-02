@@ -1,5 +1,5 @@
 export type DietType = "omnivore" | "flexitarien" | "pescetarien" | "vegetarien" | "vegan" | "sans_porc";
-export type GoalType = "perte" | "maintien" | "prise_masse";
+export type GoalType = "perte" | "seche" | "maintien" | "prise_masse";
 export type Store = "leclerc" | "intermarche" | "carrefour" | "auchan" | "lidl" | "aldi" | "monoprix";
 export type MealType = "Petit-déjeuner" | "Déjeuner" | "Dîner" | "Collation";
 
