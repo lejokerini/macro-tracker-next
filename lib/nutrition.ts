@@ -22,8 +22,8 @@ export function calculateTargets(profile: Profile): Targets {
   else if (profile.goal === "prise_masse") kcal = tdee * 1.10; // prise de masse : surplus ~10 %
 
   // Plancher de sécurité : ne jamais descendre sous le métabolisme de base,
-  // ni sous un minimum absolu (≈ 1500 kcal homme / 1200 kcal femme).
-  const floorKcal = Math.max(bmr, profile.sex === "homme" ? 1500 : 1200);
+  // ni sous un minimum absolu (1700 kcal homme / 1500 kcal femme).
+  const floorKcal = Math.max(bmr, profile.sex === "homme" ? 1700 : 1500);
   if (profile.goal === "perte" || profile.goal === "seche") kcal = Math.max(kcal, floorKcal);
 
   kcal = Math.round(kcal / 10) * 10;
