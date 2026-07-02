@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Politique de confidentialité — Macrolens",
+  title: "Politique de confidentialité · Macrolens",
   description: "Comment Macrolens collecte, utilise et protège tes données.",
 };
 

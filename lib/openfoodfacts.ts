@@ -275,8 +275,8 @@ export function openFoodFactsProductToFood(product: OpenFoodFactsProduct): Food 
     reliability: imageFor(product) && hasNutrition(product) ? "standard" : "estime",
     source: "openfoodfacts",
     sourceRef: imageFor(product)
-      ? "Open Food Facts — produit de marque issu des étiquettes. Vérifie le code-barres si plusieurs produits se ressemblent."
-      : "Open Food Facts — image absente dans la base. Vérifie le nom, la marque et le code-barres avant d'ajouter.",
+      ? "Open Food Facts · produit de marque issu des étiquettes. Vérifie le code-barres si plusieurs produits se ressemblent."
+      : "Open Food Facts · image absente dans la base. Vérifie le nom, la marque et le code-barres avant d'ajouter.",
     barcode: product.code,
     brand: product.brands,
     aliases: [product.code, product.brands, product.generic_name_fr, product.generic_name].filter(Boolean) as string[],

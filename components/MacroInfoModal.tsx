@@ -9,10 +9,10 @@ const CONTENT: Record<MacroKind, { title: string; color: string; kcal: string; i
     kcal: "4 kcal / g",
     intro: "Elles construisent et réparent les muscles, la peau, les cheveux et fabriquent enzymes et hormones. C'est le macro clé pour progresser et garder du muscle, surtout en sèche.",
     types: [
-      { name: "Animales (complètes)", desc: "Viande, poisson, œufs, produits laitiers, whey — contiennent tous les acides aminés essentiels." },
-      { name: "Végétales", desc: "Légumineuses, tofu, céréales — souvent incomplètes seules, à combiner (ex. riz + lentilles)." },
+      { name: "Animales (complètes)", desc: "Viande, poisson, œufs, produits laitiers, whey : ils contiennent tous les acides aminés essentiels." },
+      { name: "Végétales", desc: "Légumineuses, tofu, céréales : souvent incomplètes seules, à combiner (ex. riz + lentilles)." },
     ],
-    tip: "Repère : 1,6 à 2,2 g par kg de poids de corps (c'est l'unité des études de référence). Si ton taux de masse grasse est élevé, raisonne plutôt par kg de masse maigre — soit ≈ 2,3 à 3,1 g/kg de masse maigre.",
+    tip: "Repère : 1,6 à 2,2 g par kg de poids de corps (c'est l'unité des études de référence). Si ton taux de masse grasse est élevé, raisonne plutôt par kg de masse maigre, soit ≈ 2,3 à 3,1 g/kg de masse maigre.",
     refs: "Morton et al., 2018 (méta-analyse, Br J Sports Med) ; position de l'ISSN, Jäger et al., 2017 ; Helms et al., 2014 (recommandations par masse maigre).",
   },
   carbs: {
@@ -21,9 +21,9 @@ const CONTENT: Record<MacroKind, { title: string; color: string; kcal: string; i
     kcal: "4 kcal / g",
     intro: "Le carburant principal du corps et du cerveau, surtout à l'effort. Ce sont eux qu'on augmente quand on veut prendre de la masse.",
     types: [
-      { name: "Simples (rapides)", desc: "Fruits, miel, sucre, sodas — énergie immédiate ; à limiter sous forme raffinée." },
-      { name: "Complexes (amidon)", desc: "Riz, pâtes, pain, pomme de terre, avoine — énergie durable." },
-      { name: "Fibres", desc: "Légumes, légumineuses, produits complets — digestion, satiété, glycémie stable." },
+      { name: "Simples (rapides)", desc: "Fruits, miel, sucre, sodas : énergie immédiate, à limiter sous forme raffinée." },
+      { name: "Complexes (amidon)", desc: "Riz, pâtes, pain, pomme de terre, avoine : énergie durable." },
+      { name: "Fibres", desc: "Légumes, légumineuses, produits complets : digestion, satiété, glycémie stable." },
     ],
     tip: "Privilégie les complexes et les fibres autour de tes entraînements.",
     refs: "Position de l'ISSN sur la nutrition du sport (Kerksick et al., 2018) ; recommandations OMS/EFSA sur les fibres (≈ 25–30 g/jour).",
@@ -32,9 +32,9 @@ const CONTENT: Record<MacroKind, { title: string; color: string; kcal: string; i
     title: "Lipides",
     color: "#8a6bd1",
     kcal: "9 kcal / g",
-    intro: "Indispensables aux hormones, au cerveau et à l'absorption des vitamines A, D, E et K. Très caloriques, donc à doser — mais jamais à supprimer.",
+    intro: "Indispensables aux hormones, au cerveau et à l'absorption des vitamines A, D, E et K. Très caloriques, donc à doser, mais jamais à supprimer.",
     types: [
-      { name: "Insaturés (à privilégier)", desc: "Huile d'olive, avocat, noix, poissons gras (oméga-3) — protecteurs cœur/cerveau." },
+      { name: "Insaturés (à privilégier)", desc: "Huile d'olive, avocat, noix, poissons gras (oméga-3) : protecteurs cœur/cerveau." },
       { name: "Saturés (avec modération)", desc: "Beurre, viandes grasses, fromage, huile de coco." },
       { name: "Trans (à éviter)", desc: "Produits ultra-transformés, fritures industrielles." },
     ],

@@ -344,6 +344,12 @@ button,input,select,textarea{font:inherit}
 .premium-card{background:linear-gradient(135deg,#fff7e6,#fffaf0);border:1px solid #ead3a1}
 [data-theme="dark"] .premium-card{background:linear-gradient(135deg,#2a2208,#181307);border-color:#5a4a22}
 
+/* Champ mot de passe avec bouton afficher/masquer */
+.pwd-field{position:relative}
+.pwd-field input{padding-right:46px}
+.pwd-toggle{position:absolute;top:50%;right:6px;transform:translateY(-50%);width:34px;height:34px;border:0;background:transparent;font-size:17px;cursor:pointer;border-radius:10px;display:flex;align-items:center;justify-content:center;line-height:1}
+.pwd-toggle:hover{background:var(--primary-soft)}
+
 /* ==================== Landing page ==================== */
 .lp{max-width:1180px;margin:0 auto;padding:20px 22px 60px;position:relative}
 .lp-nav{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:8px 0 4px}

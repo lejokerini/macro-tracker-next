@@ -2,11 +2,11 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 export const metadata: Metadata = {
-  title: "Macrolens — Compteur de calories & macros en photo",
+  title: "Macrolens · Compteur de calories & macros en photo",
   description:
     "Prends ton repas en photo, Macrolens estime les calories et les macros. Données Ciqual officielles, scan de code-barres, journal et programmes. Gratuit, sans pub.",
   openGraph: {
-    title: "Macrolens — Compteur de calories & macros en photo",
+    title: "Macrolens · Compteur de calories & macros en photo",
     description:
       "Photographie ton repas, obtiens les calories et macros en un instant. Données françaises Ciqual, gratuit et sans pub.",
     type: "website",

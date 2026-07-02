@@ -47,6 +47,8 @@ export function inferAllergens(name: string): string[] {
   if (/crevette|gambas|langoustine|crabe|homard|langouste/.test(n)) a.add("crustaces");
   if (/moule|huitre|calamar|poulpe|saint-jacques|escargot/.test(n)) a.add("mollusques");
   if (/sesame|tahini/.test(n)) a.add("sesame");
+  // Graines & petits pépins (utile en cas de diverticules) : graines, oléagineux à pépins, baies à grains.
+  if (/graine|chia|pavot|sesame|tahini|\blin\b|framboise|myrtille|groseille|cassis|\bmure\b|fraise|kiwi|figue|grenade|quinoa|pop-?corn/.test(n)) a.add("graines");
   if (/moutarde/.test(n)) a.add("moutarde");
   if (/celeri/.test(n)) a.add("celeri");
   if (/vin|champagne|biere|cidre|rhum|cognac|whisky|armagnac|calvados/.test(n)) a.add("alcool");

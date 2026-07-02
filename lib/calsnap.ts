@@ -92,7 +92,7 @@ export function buildScannedFood(item: EditableScanItem): Food {
     },
     reliability: "estime",
     source: "estimated",
-    sourceRef: "CalSnap — estimation par photo (Claude vision). Vérifie et ajuste la portion si besoin.",
+    sourceRef: "CalSnap · estimation par photo (Claude vision). Vérifie et ajuste la portion si besoin.",
     icon: scanIcon(item.name),
     aliases: [item.name],
   } satisfies Food;

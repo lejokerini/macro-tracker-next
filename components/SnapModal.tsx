@@ -147,7 +147,7 @@ export default function SnapModal({
       setLoading(false);
       setError(isPremium
         ? `Limite quotidienne atteinte (${dailyLimit} analyses). Réessaie demain, ou utilise le code-barres / la recherche.`
-        : `Limite du plan gratuit atteinte (${dailyLimit} analyses photo/jour). Passe en Premium pour la photo illimitée — ou utilise le scan code-barres / la recherche (gratuits et illimités).`);
+        : `Limite du plan gratuit atteinte (${dailyLimit} analyses photo/jour). Passe en Premium pour la photo illimitée, ou utilise le scan code-barres / la recherche (gratuits et illimités).`);
       return;
     }
     setLoading(true);
@@ -234,7 +234,7 @@ export default function SnapModal({
 
         {!preview && !analyzed && (
           <div className="snap-capture-zone">
-            <p className="muted">Prends ton repas en photo — ou décris-le, l'IA estime les calories et les macros.</p>
+            <p className="muted">Prends ton repas en photo, ou décris-le : l'IA estime les calories et les macros.</p>
             <div className="row" style={{ justifyContent: "center", flexWrap: "wrap" }}>
               <button className="btn" onClick={() => cameraRef.current?.click()}>📷 Prendre une photo</button>
               <button className="btn secondary" onClick={() => libraryRef.current?.click()}>🖼️ Importer</button>
