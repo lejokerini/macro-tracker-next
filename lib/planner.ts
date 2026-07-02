@@ -34,19 +34,31 @@ export function generateProgram(profile: Profile, recipes: Recipe[], days = 7): 
   const meals: ProgramMeal[] = [];
   const distribution = mealDistribution(profile);
   const targetKcal = calculateTargets(profile).kcal;
+  // Calories de maintien (même profil, objectif « maintien ») pour l'entrée progressive.
+  const maintenanceKcal = calculateTargets({ ...profile, goal: "maintien" }).kcal;
+  const isLoss = profile.goal === "perte" || profile.goal === "seche";
+  // Perte/sèche : on entre en douceur dans le déficit sur les premiers jours (J1 plus léger)
+  // au lieu d'une baisse brutale — meilleure adhésion, transition plus confortable.
+  const easeFractions = [0.4, 0.6, 0.8]; // part du déficit appliquée à J1, J2, J3 (100 % ensuite)
+  const dayTargetKcal = (d: number) => {
+    if (!isLoss || d >= easeFractions.length) return targetKcal;
+    const eased = maintenanceKcal - (maintenanceKcal - targetKcal) * easeFractions[d];
+    return Math.round(Math.max(targetKcal, Math.min(maintenanceKcal, eased)) / 10) * 10;
+  };
   const today = new Date();
   for (let d=0; d<days; d++) {
     const date = new Date(today); date.setDate(today.getDate()+d);
     const iso = date.toISOString().slice(0,10);
     const dayIdx = date.getDay();
     const dayType = profile.trainingDays.includes(dayIdx) ? "entrainement" : "repos";
+    const dayKcal = dayTargetKcal(d);
     distribution.forEach(({ mealType, ratio }, i) => {
       const pool = allowed.filter(r => r.mealType === mealType);
       if (!pool.length) return;
       const chosen = pool[(d + i) % pool.length];
       const baseKcal = recipeMacros(chosen).kcal;
-      // Facteur de portion pour atteindre les kcal visées du repas (borné pour rester réaliste).
-      const factor = baseKcal > 0 ? Math.min(3, Math.max(0.5, Math.round((targetKcal * ratio / baseKcal) * 10) / 10)) : 1;
+      // Facteur de portion pour atteindre les kcal visées du jour (borné pour rester réaliste).
+      const factor = baseKcal > 0 ? Math.min(3, Math.max(0.5, Math.round((dayKcal * ratio / baseKcal) * 10) / 10)) : 1;
       meals.push({ date: iso, dayType, mealType, recipeId: chosen.id, factor });
     });
   }
