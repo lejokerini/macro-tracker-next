@@ -146,6 +146,7 @@ export default function MacroTrackerApp() {
   const [bmiInfoOpen, setBmiInfoOpen] = useState(false);
   const [metabInfoOpen, setMetabInfoOpen] = useState(false);
   const [hydrInfoOpen, setHydrInfoOpen] = useState(false);
+  const [kcalInfoOpen, setKcalInfoOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("all");
   const [selectedMeal, setSelectedMeal] = useState<MealType>("Déjeuner");
@@ -610,7 +611,7 @@ export default function MacroTrackerApp() {
 
     {tab === "dashboard" && <section className="grid">
       {!activeProfile && <div className="card span-12 onboarding-card"><h2>👋 Bienvenue sur Macrolens</h2><p className="muted">Crée ton profil pour calculer tes calories et macros personnalisées, puis prends ton premier repas en photo.</p><div className="row" style={{marginTop:8}}><button className="btn" onClick={()=>setTab("profil")}>Créer mon profil</button><button className="btn secondary" onClick={()=>setSnapOpen(true)}>📸 Essayer le snap</button></div></div>}
-      <div className="card span-4 chart-card"><h3>Calories du jour</h3><ProgressRing value={totals.kcal} max={targets?.kcal || 0} color="var(--primary-2)" top={`${totals.kcal}`} bottom={targets ? `/ ${targets.kcal}` : "kcal"} /><span className="chart-foot">{targets ? `${Math.max(0, targets.kcal - totals.kcal)} kcal restantes` : "Crée un profil pour ta cible"}</span></div>
+      <div className="card span-4 chart-card"><h3>Calories du jour <button type="button" className="info-link" onClick={()=>setKcalInfoOpen(true)} aria-label="Comment les calories du jour sont calculées">ⓘ</button></h3><ProgressRing value={totals.kcal} max={targets?.kcal || 0} color="var(--primary-2)" top={`${totals.kcal}`} bottom={targets ? `/ ${targets.kcal}` : "kcal"} /><span className="chart-foot">{targets ? `${Math.max(0, targets.kcal - totals.kcal)} kcal restantes` : "Crée un profil pour ta cible"}</span></div>
       <div className="card span-4 chart-card"><h3>Macros</h3><MacroPie protein={totals.protein} carbs={totals.carbs} fat={totals.fat} /><div className="macro-legend"><button type="button" onClick={()=>setMacroInfo("protein")}><i className="legend-dot" style={{background:"#2f6b2f"}} />P {totals.protein}g <span className="info-i">i</span></button><button type="button" onClick={()=>setMacroInfo("carbs")}><i className="legend-dot" style={{background:"#f3a52c"}} />G {totals.carbs}g <span className="info-i">i</span></button><button type="button" onClick={()=>setMacroInfo("fat")}><i className="legend-dot" style={{background:"#8a6bd1"}} />L {totals.fat}g <span className="info-i">i</span></button></div><span className="chart-foot">🌾 Fibres {totals.fiber}{targets ? ` / ${targets.fiber}` : ""} g</span></div>
       <div className="card span-4 chart-card"><h3>💧 Hydratation <button type="button" className="info-link" onClick={()=>setHydrInfoOpen(true)} aria-label="Comment l'objectif d'hydratation est calculé">ⓘ</button></h3><ProgressRing value={(state.water||{})[date]||0} max={waterGoal} color="#3b9bd6" top={`${(state.water||{})[date]||0}`} bottom={`/ ${waterGoal} ml`} /><div className="row water-btns"><button className="btn secondary" onClick={()=>addWater(100)}>+10cl</button><button className="btn secondary" onClick={()=>addWater(150)}>+15cl</button><button className="btn secondary" onClick={()=>addWater(250)}>+25cl</button><button className="btn secondary" onClick={()=>addWater(500)}>+50cl</button><button className="btn secondary" onClick={()=>addWater(-100)} disabled={!((state.water||{})[date])}>−10cl</button></div></div>
       <div className="card span-12"><MicroPanel title="Vitamines & minéraux du jour" micros={microsToday} onInfo={setMicroDetail}/></div>
@@ -682,6 +683,7 @@ export default function MacroTrackerApp() {
     <MicroDetailModal micro={microDetail} onClose={()=>setMicroDetail(null)} />
     <BmiInfoModal open={bmiInfoOpen} onClose={()=>setBmiInfoOpen(false)} />
     <MetabolismInfoModal open={metabInfoOpen} onClose={()=>setMetabInfoOpen(false)} sex={activeProfile?.sex || "homme"} />
+    <CaloriesInfoModal open={kcalInfoOpen} onClose={()=>setKcalInfoOpen(false)} targetKcal={targets?.kcal || 0} manual={!!(activeProfile?.customKcal && activeProfile.customKcal > 0)} />
     <HydrationInfoModal open={hydrInfoOpen} onClose={()=>setHydrInfoOpen(false)} goal={waterGoal} />
     {toast && <div className="toast" role="status">{toast}</div>}
 
@@ -927,6 +929,26 @@ function BmiInfoModal({ open, onClose }: { open: boolean; onClose: () => void })
         <div className="macro-info-type"><strong>Ses limites</strong><span>Il ne distingue PAS le muscle de la graisse : une personne musclée peut être classée « surpoids » sans excès de gras. Il ignore aussi la répartition des graisses, l&apos;âge, le sexe et l&apos;origine. Ce n&apos;est pas un diagnostic.</span></div>
         <p className="notice" style={{ marginTop: 12 }}>Si tu fais du sport, le <strong>taux de masse grasse</strong> (estimable dans ton profil) et le <strong>tour de taille</strong> sont bien plus parlants que l&apos;IMC seul.</p>
         <p className="form-help" style={{ marginTop: 10 }}>Source : classification de l&apos;OMS (Organisation mondiale de la Santé).</p>
+      </div>
+    </div>
+  );
+}
+function CaloriesInfoModal({ open, onClose, targetKcal, manual }: { open: boolean; onClose: () => void; targetKcal: number; manual: boolean }) {
+  if (!open) return null;
+  return (
+    <div className="snap-overlay" role="dialog" aria-modal="true" onClick={onClose}>
+      <div className="snap-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="snap-head"><h2>Comment tes calories/jour sont calculées</h2><button className="snap-close" onClick={onClose} aria-label="Fermer">✕</button></div>
+        {targetKcal > 0 && <p className="macro-info-kcal" style={{ color: "var(--primary)" }}>Ta cible actuelle : {targetKcal} kcal/jour{manual ? " (fixée manuellement)" : ""}</p>}
+        {manual
+          ? <p className="macro-info-intro">Tu as <strong>fixé toi-même</strong> ta cible calorique dans ton profil : l&apos;app l&apos;utilise telle quelle et en déduit tes macros. Vide ce champ pour revenir au calcul automatique décrit ci-dessous.</p>
+          : <p className="macro-info-intro">Ta cible est calculée en <strong>trois temps</strong>, à partir de ton profil :</p>}
+        <div className="macro-info-type"><strong>1. Métabolisme de base</strong><span>Les calories brûlées au repos, estimées par l&apos;équation de <strong>Mifflin-St Jeor</strong> (ou <strong>Katch-McArdle</strong> si ta masse grasse est renseignée). Voir l&apos;info « Métabolisme de base » dans ton profil pour le détail des formules.</span></div>
+        <div className="macro-info-type"><strong>2. × ton niveau d&apos;activité</strong><span>On multiplie par un facteur d&apos;activité (sédentaire ≈ 1,2 · léger ≈ 1,375 · modéré ≈ 1,55 · élevé ≈ 1,725 · très élevé ≈ 1,9) pour obtenir ta <strong>dépense énergétique totale</strong> (TDEE).</span></div>
+        <div className="macro-info-type"><strong>3. Ajustement selon l&apos;objectif</strong><span>Perte de poids : −20 % · Sèche : −15 % (plus doux pour préserver le muscle) · Maintien : 0 % · Prise de masse : +10 %.</span></div>
+        <p className="notice" style={{ marginTop: 12 }}>Un <strong>plancher de sécurité</strong> empêche de descendre sous ton métabolisme de base, ni sous 1700 kcal (homme) / 1500 kcal (femme). Et tu peux toujours imposer ta propre valeur dans le profil (« Calories/jour »).</p>
+        <p className="notice" style={{ marginTop: 8 }}>Ce sont des <strong>estimations</strong> : la dépense réelle varie d&apos;une personne à l&apos;autre. Le plus fiable reste d&apos;ajuster sur 2-3 semaines selon l&apos;évolution de ton poids.</p>
+        <p className="form-help" style={{ marginTop: 10 }}>Sources : Mifflin MD &amp; St Jeor ST et al., Am J Clin Nutr, 1990 (métabolisme de base) ; FAO/WHO/UNU, « Human energy requirements », 2004 (niveaux d&apos;activité) ; Helms et al., 2014 et position de l&apos;ISSN (Jäger et al., 2017) pour un déficit préservant la masse musculaire.</p>
       </div>
     </div>
   );
