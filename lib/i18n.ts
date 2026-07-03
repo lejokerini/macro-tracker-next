@@ -51,6 +51,11 @@ const fr: Dict = {
   "onboarding.text": "Crée ton profil pour calculer tes calories et macros personnalisées, puis prends ton premier repas en photo.",
   "onboarding.createProfile": "Créer mon profil",
   "onboarding.trySnap": "📸 Essayer le snap",
+  // Dashboard
+  "dash.calories": "Calories du jour",
+  "dash.macros": "Macros",
+  "dash.hydration": "💧 Hydratation",
+  "dash.micros": "Vitamines & minéraux du jour",
   // Commun
   "common.language": "Langue",
 };
@@ -92,6 +97,10 @@ const es: Dict = {
   "onboarding.text": "Crea tu perfil para calcular tus calorías y macros personalizadas, y luego fotografía tu primera comida.",
   "onboarding.createProfile": "Crear mi perfil",
   "onboarding.trySnap": "📸 Probar la foto",
+  "dash.calories": "Calorías del día",
+  "dash.macros": "Macros",
+  "dash.hydration": "💧 Hidratación",
+  "dash.micros": "Vitaminas y minerales del día",
   "common.language": "Idioma",
 };
 
