@@ -74,6 +74,7 @@ export default function BodyFatModal({
         </div>
 
         <p className="form-help">Plus précis : une pince à plis cutanés (méthode Jackson-Pollock 3 plis) ou une balance à impédancemètre. Toutes ces méthodes restent des estimations (±3-4 %).</p>
+        <p className="form-help" style={{ marginTop: 6 }}>Source de la méthode : Hodgdon &amp; Beckett, « Prediction of percent body fat for U.S. Navy men/women from body circumferences and height », Naval Health Research Center, 1984.</p>
 
         <div className="snap-footer">
           <button className="btn secondary" onClick={onClose}>Annuler</button>
