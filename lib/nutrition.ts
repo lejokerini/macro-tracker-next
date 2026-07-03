@@ -7,11 +7,13 @@ export function calculateTargets(profile: Profile): Targets {
   const lbm = bf ? profile.weightKg * (1 - bf / 100) : undefined;
 
   // BMR : Katch-McArdle si LBM connue (plus précis), sinon Mifflin-St Jeor.
-  const bmr = lbm
+  const computedBmr = lbm
     ? 370 + 21.6 * lbm
     : profile.sex === "homme"
       ? 10 * profile.weightKg + 6.25 * profile.heightCm - 5 * profile.age + 5
       : 10 * profile.weightKg + 6.25 * profile.heightCm - 5 * profile.age - 161;
+  // L'utilisateur peut fournir son propre métabolisme de base (mesuré / connu).
+  const bmr = profile.customBmr && profile.customBmr > 0 ? profile.customBmr : computedBmr;
 
   // Dépense énergétique totale (TDEE), puis ajustement selon l'objectif.
   // Déficits/surplus en pourcentage du TDEE (plus physiologique qu'un forfait fixe).
@@ -27,6 +29,9 @@ export function calculateTargets(profile: Profile): Targets {
   if (profile.goal === "perte" || profile.goal === "seche") kcal = Math.max(kcal, floorKcal);
 
   kcal = Math.round(kcal / 10) * 10;
+
+  // Calories/jour choisies manuellement par l'utilisateur : elles priment sur le calcul.
+  if (profile.customKcal && profile.customKcal > 0) kcal = Math.round(profile.customKcal / 10) * 10;
 
   // Protéines et lipides calés sur la masse maigre si connue, sinon le poids.
   // Les lipides ne gonflent PAS en prise de masse : le surplus va aux glucides (carburant).

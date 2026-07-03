@@ -45,6 +45,8 @@ export type Profile = {
   activity: number;
   goal: GoalType;
   proteinPerKg?: number;
+  customBmr?: number;   // métabolisme de base fourni par l'utilisateur (kcal), sinon calculé
+  customKcal?: number;  // calories/jour fixées manuellement (prime sur le calcul)
   diet: DietType;
   weeklyBudget: number;
   store: Store;
