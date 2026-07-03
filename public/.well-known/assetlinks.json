@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "fr.macrolens.app",
+      "sha256_cert_fingerprints": [
+        "1C:B4:0A:94:9F:51:B9:F6:0F:57:5D:B9:CC:F6:B5:A5:93:D2:B1:38:7A:24:7A:98:C4:C0:9A:4A:73:74:FB:D7"
+      ]
+    }
+  }
+]
