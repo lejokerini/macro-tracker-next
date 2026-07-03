@@ -56,8 +56,26 @@ const fr: Dict = {
   "dash.macros": "Macros",
   "dash.hydration": "💧 Hydratation",
   "dash.micros": "Vitamines & minéraux du jour",
+  // Journal
+  "journal.add": "Ajouter",
+  "journal.snapCta": "📸 Snap mon repas (photo → calories)",
+  "journal.scanCta": "🏷️ Scanner un code-barres",
+  "journal.favorites": "★ Favoris",
+  "journal.recents": "Récents",
+  "journal.searchPlaceholder": "marque, produit ou code-barres...",
+  "journal.addToJournal": "Ajouter au journal",
+  "journal.diaryOf": "Journal du",
+  "journal.remove": "Retirer",
+  // Repas (l'étiquette est traduite, la valeur interne reste en français)
+  "meal.Petit-déjeuner": "Petit-déjeuner",
+  "meal.Déjeuner": "Déjeuner",
+  "meal.Dîner": "Dîner",
+  "meal.Collation": "Collation",
   // Commun
   "common.language": "Langue",
+  "common.date": "Date",
+  "common.meal": "Repas",
+  "common.search": "Recherche",
 };
 
 const es: Dict = {
@@ -101,7 +119,23 @@ const es: Dict = {
   "dash.macros": "Macros",
   "dash.hydration": "💧 Hidratación",
   "dash.micros": "Vitaminas y minerales del día",
+  "journal.add": "Añadir",
+  "journal.snapCta": "📸 Foto de mi comida (foto → calorías)",
+  "journal.scanCta": "🏷️ Escanear código de barras",
+  "journal.favorites": "★ Favoritos",
+  "journal.recents": "Recientes",
+  "journal.searchPlaceholder": "marca, producto o código de barras...",
+  "journal.addToJournal": "Añadir al diario",
+  "journal.diaryOf": "Diario del",
+  "journal.remove": "Quitar",
+  "meal.Petit-déjeuner": "Desayuno",
+  "meal.Déjeuner": "Almuerzo",
+  "meal.Dîner": "Cena",
+  "meal.Collation": "Merienda",
   "common.language": "Idioma",
+  "common.date": "Fecha",
+  "common.meal": "Comida",
+  "common.search": "Buscar",
 };
 
 const DICTS: Record<Lang, Dict> = { fr, es };
