@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { ensureCiqualLoaded, estimateServingGrams, findFood, foods, formatQuantity, isPieceInput, quantityToNutritionGrams, searchFoods, STORES } from "@/lib/food-engine";
 import { average7, calculateTargets, logMacros, recipeMacros, sumIngredients, weightTrendRecommendation } from "@/lib/nutrition";
+import { makeT, LANGS, type Lang } from "@/lib/i18n";
 import { buildShoppingList, generateProgram, scoreProgram } from "@/lib/planner";
 import { seedRecipes } from "@/data/recipes";
 import { createBrowserSupabaseClient } from "@/lib/supabase";
@@ -18,15 +19,14 @@ import { CIQUAL_FOOD_COUNT } from "@/data/ciqual-meta";
 import type { DietType, Food, MealLogItem, MealType, PantryItem, Profile, ProgramMeal, Recipe, Store, WeightLog } from "@/lib/types";
 
 type Tab = "dashboard" | "profil" | "journal" | "catalogue" | "recettes" | "programme" | "courses" | "placard" | "poids" | "progres" | "sauvegarde";
-type State = { profiles: Profile[]; activeProfileId?: string; logs: MealLogItem[]; pantry: PantryItem[]; weights: WeightLog[]; recipes: Recipe[]; program: ProgramMeal[]; offFoods: Food[]; favorites: string[]; water: Record<string, number>; premium?: boolean };
+type State = { profiles: Profile[]; activeProfileId?: string; logs: MealLogItem[]; pantry: PantryItem[]; weights: WeightLog[]; recipes: Recipe[]; program: ProgramMeal[]; offFoods: Food[]; favorites: string[]; water: Record<string, number>; premium?: boolean; lang?: Lang };
 type MicroKey = "sugars" | "salt" | "calcium" | "iron" | "magnesium" | "potassium" | "sodium" | "zinc" | "vitA" | "vitD" | "vitE" | "vitC" | "vitB1" | "vitB2" | "vitB3" | "vitB6" | "vitB9" | "vitB12";
 
-const TAB_LABELS: Record<Tab, string> = { dashboard: "Dashboard", profil: "Profil", journal: "Journal", catalogue: "Catalogue", recettes: "Recettes", programme: "Programme", courses: "Courses", placard: "Placard", poids: "Poids", progres: "Progrès", sauvegarde: "Mon compte" };
 const STORAGE_KEY = "macro-tracker-next-v3";
 const MEALS: MealType[] = ["Petit-déjeuner", "Déjeuner", "Dîner", "Collation"];
 const ALLERGENS = ["gluten","lait","oeufs","soja","fruits_a_coque","poisson","crustaces","mollusques","sesame","graines","moutarde","celeri","alcool"];
 const ALLERGEN_LABELS: Record<string,string> = { gluten:"Gluten", lait:"Lait", oeufs:"Œufs", soja:"Soja", fruits_a_coque:"Fruits à coque", poisson:"Poisson", crustaces:"Crustacés", mollusques:"Mollusques", sesame:"Sésame", graines:"Graines & pépins", moutarde:"Moutarde", celeri:"Céleri", alcool:"Alcool" };
-const emptyState: State = { profiles: [], logs: [], pantry: [], weights: [], recipes: seedRecipes, program: [], offFoods: [], favorites: [], water: {}, premium: false };
+const emptyState: State = { profiles: [], logs: [], pantry: [], weights: [], recipes: seedRecipes, program: [], offFoods: [], favorites: [], water: {}, premium: false, lang: "fr" };
 function hasUserData(state: State) {
   return state.profiles.length > 0 || state.logs.length > 0 || state.pantry.length > 0 || state.weights.length > 0 || state.program.length > 0;
 }
@@ -211,6 +211,8 @@ export default function MacroTrackerApp() {
   const activeProfile = state.profiles.find(p => p.id === state.activeProfileId);
   const targets = activeProfile ? calculateTargets(activeProfile) : null;
   const waterGoal = activeProfile ? Math.max(1500, Math.round(activeProfile.weightKg * 35)) : 2000;
+  const lang: Lang = state.lang || "fr";
+  const tr = makeT(lang);
   const latestWeight = state.weights.length ? [...state.weights].sort((a, b) => a.date.localeCompare(b.date))[state.weights.length - 1].weightKg : activeProfile?.weightKg;
   const bmi = activeProfile && latestWeight && activeProfile.heightCm > 0 ? latestWeight / Math.pow(activeProfile.heightCm / 100, 2) : null;
   const categories = useMemo(() => ["all", ...Array.from(new Set(foods.map(f => f.category))).sort((a,b)=>a.localeCompare(b,"fr"))], [ciqualReady]);
@@ -607,10 +609,10 @@ export default function MacroTrackerApp() {
         <span className="cloud-mini">{session?.user ? `Cloud connecté · ${autoSync ? "auto-save ON" : "auto-save OFF"}` : supabase ? "Cloud prêt · non connecté" : "Cloud non configuré"}</span>
       </div>
     </header>
-    <nav className="tabs">{(["dashboard","profil","journal","catalogue","recettes","programme","courses","placard","poids","progres","sauvegarde"] as Tab[]).map(t => <button key={t} className={`tab ${tab===t?"active":""}`} onClick={()=>setTab(t)}>{TAB_LABELS[t]}</button>)}<button className="theme-toggle" onClick={toggleTheme} aria-label="Basculer le thème clair/sombre">{theme === "dark" ? "☀️ Clair" : "🌙 Sombre"}</button></nav>
+    <nav className="tabs">{(["dashboard","profil","journal","catalogue","recettes","programme","courses","placard","poids","progres","sauvegarde"] as Tab[]).map(t => <button key={t} className={`tab ${tab===t?"active":""}`} onClick={()=>setTab(t)}>{tr("tab."+t)}</button>)}<select className="lang-select" value={lang} onChange={e=>setState(s=>({...s, lang: e.target.value as Lang}))} aria-label={tr("common.language")}>{LANGS.map(l=><option key={l.code} value={l.code}>{l.label}</option>)}</select><button className="theme-toggle" onClick={toggleTheme} aria-label="Basculer le thème clair/sombre">{theme === "dark" ? tr("theme.light") : tr("theme.dark")}</button></nav>
 
     {tab === "dashboard" && <section className="grid">
-      {!activeProfile && <div className="card span-12 onboarding-card"><h2>👋 Bienvenue sur Macrolens</h2><p className="muted">Crée ton profil pour calculer tes calories et macros personnalisées, puis prends ton premier repas en photo.</p><div className="row" style={{marginTop:8}}><button className="btn" onClick={()=>setTab("profil")}>Créer mon profil</button><button className="btn secondary" onClick={()=>setSnapOpen(true)}>📸 Essayer le snap</button></div></div>}
+      {!activeProfile && <div className="card span-12 onboarding-card"><h2>{tr("onboarding.welcome")}</h2><p className="muted">{tr("onboarding.text")}</p><div className="row" style={{marginTop:8}}><button className="btn" onClick={()=>setTab("profil")}>{tr("onboarding.createProfile")}</button><button className="btn secondary" onClick={()=>setSnapOpen(true)}>{tr("onboarding.trySnap")}</button></div></div>}
       <div className="card span-4 chart-card"><h3>Calories du jour <button type="button" className="info-link" onClick={()=>setKcalInfoOpen(true)} aria-label="Comment les calories du jour sont calculées">ⓘ</button></h3><ProgressRing value={totals.kcal} max={targets?.kcal || 0} color="var(--primary-2)" top={`${totals.kcal}`} bottom={targets ? `/ ${targets.kcal}` : "kcal"} /><span className="chart-foot">{targets ? `${Math.max(0, targets.kcal - totals.kcal)} kcal restantes` : "Crée un profil pour ta cible"}</span></div>
       <div className="card span-4 chart-card"><h3>Macros</h3><MacroPie protein={totals.protein} carbs={totals.carbs} fat={totals.fat} /><div className="macro-legend"><button type="button" onClick={()=>setMacroInfo("protein")}><i className="legend-dot" style={{background:"#2f6b2f"}} />P {totals.protein}g <span className="info-i">i</span></button><button type="button" onClick={()=>setMacroInfo("carbs")}><i className="legend-dot" style={{background:"#f3a52c"}} />G {totals.carbs}g <span className="info-i">i</span></button><button type="button" onClick={()=>setMacroInfo("fat")}><i className="legend-dot" style={{background:"#8a6bd1"}} />L {totals.fat}g <span className="info-i">i</span></button></div><span className="chart-foot">🌾 Fibres {totals.fiber}{targets ? ` / ${targets.fiber}` : ""} g</span></div>
       <div className="card span-4 chart-card"><h3>💧 Hydratation <button type="button" className="info-link" onClick={()=>setHydrInfoOpen(true)} aria-label="Comment l'objectif d'hydratation est calculé">ⓘ</button></h3><ProgressRing value={(state.water||{})[date]||0} max={waterGoal} color="#3b9bd6" top={`${(state.water||{})[date]||0}`} bottom={`/ ${waterGoal} ml`} /><div className="row water-btns"><button className="btn secondary" onClick={()=>addWater(100)}>+10cl</button><button className="btn secondary" onClick={()=>addWater(150)}>+15cl</button><button className="btn secondary" onClick={()=>addWater(250)}>+25cl</button><button className="btn secondary" onClick={()=>addWater(500)}>+50cl</button><button className="btn secondary" onClick={()=>addWater(-100)} disabled={!((state.water||{})[date])}>−10cl</button></div></div>
@@ -675,7 +677,7 @@ export default function MacroTrackerApp() {
       <div className="span-12" style={{textAlign:"center",marginTop:6}}><a href="/confidentialite" className="info-link">Politique de confidentialité</a></div>
     </section>}
 
-    <SnapModal open={snapOpen} onClose={()=>setSnapOpen(false)} onConfirm={addScannedItems} onScanBarcode={()=>{ setSnapOpen(false); setBarcodeOpen(true); }} defaultMeal={selectedMeal} date={date} dailyLimit={state.premium ? 50 : 5} isPremium={!!state.premium} />
+    <SnapModal open={snapOpen} onClose={()=>setSnapOpen(false)} onConfirm={addScannedItems} onScanBarcode={()=>{ setSnapOpen(false); setBarcodeOpen(true); }} defaultMeal={selectedMeal} date={date} dailyLimit={state.premium ? 50 : 5} isPremium={!!state.premium} lang={lang} />
     <BarcodeScanModal open={barcodeOpen} onClose={()=>setBarcodeOpen(false)} onConfirm={addBarcodeFood} defaultMeal={selectedMeal} date={date} />
     <BodyFatModal open={bfModalOpen} onClose={()=>setBfModalOpen(false)} onApply={(v)=>{ setBodyFat(String(v)); setBfModalOpen(false); }} defaultSex={activeProfile?.sex || "homme"} defaultHeight={activeProfile?.heightCm} />
     <MacroInfoModal macro={macroInfo} onClose={()=>setMacroInfo(null)} />
@@ -688,20 +690,20 @@ export default function MacroTrackerApp() {
     {toast && <div className="toast" role="status">{toast}</div>}
 
     <nav className="bottom-nav">
-      <button className={`bn-item ${tab==="dashboard"?"active":""}`} onClick={()=>setTab("dashboard")}><span className="bn-ico">🏠</span>Accueil</button>
-      <button className={`bn-item ${tab==="journal"?"active":""}`} onClick={()=>setTab("journal")}><span className="bn-ico">📓</span>Journal</button>
+      <button className={`bn-item ${tab==="dashboard"?"active":""}`} onClick={()=>setTab("dashboard")}><span className="bn-ico">🏠</span>{tr("nav.home")}</button>
+      <button className={`bn-item ${tab==="journal"?"active":""}`} onClick={()=>setTab("journal")}><span className="bn-ico">📓</span>{tr("nav.journal")}</button>
       <button className="bn-snap" onClick={()=>setSnapOpen(true)} aria-label="Snap mon repas"><span>📷</span></button>
-      <button className={`bn-item ${tab==="catalogue"?"active":""}`} onClick={()=>setTab("catalogue")}><span className="bn-ico">🥑</span>Aliments</button>
-      <button className={`bn-item ${menuOpen?"active":""}`} onClick={()=>setMenuOpen(true)}><span className="bn-ico">☰</span>Menu</button>
+      <button className={`bn-item ${tab==="catalogue"?"active":""}`} onClick={()=>setTab("catalogue")}><span className="bn-ico">🥑</span>{tr("nav.foods")}</button>
+      <button className={`bn-item ${menuOpen?"active":""}`} onClick={()=>setMenuOpen(true)}><span className="bn-ico">☰</span>{tr("nav.menu")}</button>
     </nav>
 
     {menuOpen && <div className="sheet-overlay" onClick={()=>setMenuOpen(false)}>
       <div className="sheet" onClick={e=>e.stopPropagation()}>
-        <div className="sheet-head"><strong>Menu</strong><button className="snap-close" onClick={()=>setMenuOpen(false)} aria-label="Fermer">✕</button></div>
-        <div className="sheet-group"><span className="sheet-group-title">Suivi</span><button className="sheet-item" onClick={()=>{setTab("progres");setMenuOpen(false);}}>📈 Progrès</button><button className="sheet-item" onClick={()=>{setTab("poids");setMenuOpen(false);}}>⚖️ Poids</button></div>
-        <div className="sheet-group"><span className="sheet-group-title">Cuisine & planning</span><button className="sheet-item" onClick={()=>{setTab("recettes");setMenuOpen(false);}}>🍳 Recettes</button><button className="sheet-item" onClick={()=>{setTab("programme");setMenuOpen(false);}}>🗓️ Programme</button><button className="sheet-item" onClick={()=>{setTab("courses");setMenuOpen(false);}}>🛒 Courses</button><button className="sheet-item" onClick={()=>{setTab("placard");setMenuOpen(false);}}>🧺 Placard</button></div>
-        <div className="sheet-group"><span className="sheet-group-title">Mon compte</span><button className="sheet-item" onClick={()=>{setTab("profil");setMenuOpen(false);}}>👤 Profil</button><button className="sheet-item" onClick={()=>{setTab("sauvegarde");setMenuOpen(false);}}>☁️ Mon compte</button></div>
-        <div className="sheet-group"><span className="sheet-group-title">Apparence</span><button className="sheet-item" onClick={toggleTheme}>{theme==="dark"?"☀️ Thème clair":"🌙 Thème sombre"}</button></div>
+        <div className="sheet-head"><strong>{tr("menu.title")}</strong><button className="snap-close" onClick={()=>setMenuOpen(false)} aria-label="Fermer">✕</button></div>
+        <div className="sheet-group"><span className="sheet-group-title">{tr("menu.groupTracking")}</span><button className="sheet-item" onClick={()=>{setTab("progres");setMenuOpen(false);}}>{tr("menu.progress")}</button><button className="sheet-item" onClick={()=>{setTab("poids");setMenuOpen(false);}}>{tr("menu.weight")}</button></div>
+        <div className="sheet-group"><span className="sheet-group-title">{tr("menu.groupKitchen")}</span><button className="sheet-item" onClick={()=>{setTab("recettes");setMenuOpen(false);}}>{tr("menu.recipes")}</button><button className="sheet-item" onClick={()=>{setTab("programme");setMenuOpen(false);}}>{tr("menu.program")}</button><button className="sheet-item" onClick={()=>{setTab("courses");setMenuOpen(false);}}>{tr("menu.shopping")}</button><button className="sheet-item" onClick={()=>{setTab("placard");setMenuOpen(false);}}>{tr("menu.pantry")}</button></div>
+        <div className="sheet-group"><span className="sheet-group-title">{tr("menu.groupAccount")}</span><button className="sheet-item" onClick={()=>{setTab("profil");setMenuOpen(false);}}>{tr("menu.profile")}</button><button className="sheet-item" onClick={()=>{setTab("sauvegarde");setMenuOpen(false);}}>{tr("menu.account")}</button></div>
+        <div className="sheet-group"><span className="sheet-group-title">{tr("menu.groupAppearance")}</span><button className="sheet-item" onClick={toggleTheme}>{theme==="dark"?tr("theme.lightFull"):tr("theme.darkFull")}</button></div>
       </div>
     </div>}
   </main>;

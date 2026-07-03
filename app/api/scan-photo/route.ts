@@ -11,27 +11,33 @@ const GEMINI_MODEL = process.env.GEMINI_MODEL?.trim() || "gemini-2.5-flash";
 const ALLOWED_MEDIA = ["image/jpeg", "image/png", "image/webp", "image/gif"] as const;
 type AllowedMedia = (typeof ALLOWED_MEDIA)[number];
 
-const FORMAT_RULES = `Réponds UNIQUEMENT avec du JSON valide, sans aucun texte avant ou après, exactement à ce format :
+function langName(lang: string) {
+  return lang === "es" ? "espagnol" : "français";
+}
+function formatRules(lang: string) {
+  return `Réponds UNIQUEMENT avec du JSON valide, sans aucun texte avant ou après, exactement à ce format :
 {"items":[{"name":"Riz blanc cuit","grams":150,"kcal":195,"protein":3.6,"carbs":42,"fat":0.5,"fiber":0.6,"confidence":"high"}]}
 Règles :
-- "name" en français, court et clair.
+- "name" en ${langName(lang)}, court et clair.
 - "grams" = poids estimé de la portion.
 - "kcal","protein","carbs","fat","fiber" = totaux pour la portion (pas pour 100 g).
 - "confidence" = "high" | "medium" | "low" selon ta certitude.
 - Si rien n'est identifiable, renvoie {"items":[]}.`;
+}
 
-function buildPrompt(opts: { hasImage: boolean; text?: string; hint?: string }) {
+function buildPrompt(opts: { hasImage: boolean; text?: string; hint?: string; lang: string }) {
+  const rules = formatRules(opts.lang);
   if (!opts.hasImage && opts.text) {
     return `Tu es un expert en nutrition. Voici la description d'un repas écrite par l'utilisateur : « ${opts.text} ».
 Identifie chaque aliment, estime les portions en grammes et les valeurs nutritionnelles.
-${FORMAT_RULES}`;
+${rules}`;
   }
   let p = `Tu es un expert en nutrition. Analyse la photo d'un repas ou d'un aliment.
 Identifie chaque aliment distinct visible (par exemple sur une assiette : féculent, protéine, légume séparés).
 Pour CHAQUE aliment, estime la portion en grammes telle qu'elle apparaît sur la photo, puis les valeurs nutritionnelles.`;
   if (opts.hint) p += `\nCorrection importante donnée par l'utilisateur, à respecter en priorité : « ${opts.hint} ».`;
   if (opts.text) p += `\nIndication de l'utilisateur sur le contenu : « ${opts.text} ».`;
-  return `${p}\n${FORMAT_RULES}`;
+  return `${p}\n${rules}`;
 }
 
 function extractJson(text: string): unknown {
@@ -152,12 +158,14 @@ export async function POST(req: Request) {
   let image: ImageInput = null;
   let text = "";
   let hint = "";
+  let lang = "fr";
 
   try {
     const form = await req.formData();
     const file = form.get("image");
     text = String(form.get("text") || "").trim().slice(0, 500);
     hint = String(form.get("hint") || "").trim().slice(0, 300);
+    lang = String(form.get("lang") || "fr").trim() === "es" ? "es" : "fr";
     if (file instanceof File && file.size > 0) {
       if (file.size > 8 * 1024 * 1024) {
         return NextResponse.json({ error: "Image trop volumineuse (max 8 Mo)." }, { status: 400 });
@@ -176,7 +184,7 @@ export async function POST(req: Request) {
   }
 
   try {
-    const prompt = buildPrompt({ hasImage: !!image, text, hint });
+    const prompt = buildPrompt({ hasImage: !!image, text, hint, lang });
     const out = geminiKey
       ? await analyzeWithGemini(prompt, image, geminiKey)
       : await analyzeWithAnthropic(prompt, image, anthropicKey!);

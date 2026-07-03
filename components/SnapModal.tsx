@@ -73,6 +73,7 @@ export default function SnapModal({
   date,
   dailyLimit = 12,
   isPremium = false,
+  lang = "fr",
 }: {
   open: boolean;
   onClose: () => void;
@@ -82,6 +83,7 @@ export default function SnapModal({
   date: string;
   dailyLimit?: number;
   isPremium?: boolean;
+  lang?: string;
 }) {
   const [preview, setPreview] = useState("");
   const [loading, setLoading] = useState(false);
@@ -160,6 +162,7 @@ export default function SnapModal({
       if (payload.file) form.append("image", payload.file);
       if (payload.text) form.append("text", payload.text);
       if (payload.hint) form.append("hint", payload.hint);
+      form.append("lang", lang);
       const res = await fetch("/api/scan-photo", { method: "POST", body: form });
       const data = (await res.json()) as { items?: ScanItem[]; error?: string };
       if (!res.ok) {
