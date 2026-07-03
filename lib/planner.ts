@@ -38,7 +38,7 @@ export function generateProgram(profile: Profile, recipes: Recipe[], days = 7, g
   const maintenanceKcal = calculateTargets({ ...profile, goal: "maintien" }).kcal;
   const isLoss = gentleStart && (profile.goal === "perte" || profile.goal === "seche");
   // Perte/sèche : on entre en douceur dans le déficit sur les premiers jours (J1 plus léger)
-  // au lieu d'une baisse brutale — meilleure adhésion, transition plus confortable.
+  // au lieu d'une baisse brutale : meilleure adhésion, transition plus confortable.
   const easeFractions = [0.4, 0.6, 0.8]; // part du déficit appliquée à J1, J2, J3 (100 % ensuite)
   const dayTargetKcal = (d: number) => {
     if (!isLoss || d >= easeFractions.length) return targetKcal;

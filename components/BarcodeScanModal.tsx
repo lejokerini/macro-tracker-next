@@ -303,10 +303,10 @@ export default function BarcodeScanModal({
         <div className="snap-overlay" role="dialog" aria-modal="true" onClick={() => setNnInfo(false)}>
           <div className="snap-modal" onClick={(e) => e.stopPropagation()}>
             <div className="snap-head"><h2>Nutri-Score &amp; NOVA</h2><button className="snap-close" onClick={() => setNnInfo(false)} aria-label="Fermer">✕</button></div>
-            <div className="macro-info-type"><strong>Nutri-Score{product?.nutriScore ? ` — ce produit : ${product.nutriScore.toUpperCase()}` : ""}</strong><span>Une note de <strong>A (meilleur) à E</strong> résumant la qualité nutritionnelle pour 100 g/mL : elle compare les éléments favorables (fibres, protéines, fruits/légumes) à ceux à limiter (calories, sucres, acides gras saturés, sel).</span></div>
-            <div className="macro-info-type"><strong>Groupe NOVA{product?.novaGroup ? ` — ce produit : ${product.novaGroup}` : ""}</strong><span>Classe les aliments selon leur degré de transformation : 1 = brut · 2 = ingrédient culinaire · 3 = transformé · <strong>4 = ultra-transformé</strong>.</span></div>
+            <div className="macro-info-type"><strong>Nutri-Score{product?.nutriScore ? ` · ce produit :${product.nutriScore.toUpperCase()}` : ""}</strong><span>Une note de <strong>A (meilleur) à E</strong> résumant la qualité nutritionnelle pour 100 g/mL : elle compare les éléments favorables (fibres, protéines, fruits/légumes) à ceux à limiter (calories, sucres, acides gras saturés, sel).</span></div>
+            <div className="macro-info-type"><strong>Groupe NOVA{product?.novaGroup ? ` · ce produit :${product.novaGroup}` : ""}</strong><span>Classe les aliments selon leur degré de transformation : 1 = brut · 2 = ingrédient culinaire · 3 = transformé · <strong>4 = ultra-transformé</strong>.</span></div>
             <p className="notice" style={{ marginTop: 12 }}>Complémentaires : le Nutri-Score juge la composition, NOVA la transformation. Un bon Nutri-Score peut coexister avec un produit ultra-transformé.</p>
-            <p className="form-help" style={{ marginTop: 10 }}>Sources : Nutri-Score — Santé publique France (modèle FSA/Ofcom) ; NOVA — Monteiro CA et al., Public Health Nutrition, 2019 ; données Open Food Facts.</p>
+            <p className="form-help" style={{ marginTop: 10 }}>Sources : Nutri-Score : Santé publique France (modèle FSA/Ofcom). NOVA : Monteiro CA et al., Public Health Nutrition, 2019. Données Open Food Facts.</p>
           </div>
         </div>
       )}

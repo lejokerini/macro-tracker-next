@@ -366,7 +366,7 @@ function buildSearchIndex(list: Food[]) {
   }));
 }
 
-// Aliments « cœur » toujours présents (compléments, marques, base interne) — légers, dans le bundle.
+// Aliments « cœur » toujours présents (compléments, marques, base interne), légers, dans le bundle.
 const coreFoods: Food[] = [...supplementFoods, ...brandedFoods, ...localFoods];
 // La base Ciqual (3 484 aliments) est chargée à la demande (import dynamique) pour alléger l'ouverture.
 export let foods: Food[] = coreFoods;
