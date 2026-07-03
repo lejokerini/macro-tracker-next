@@ -54,6 +54,8 @@ export default function BarcodeScanModal({
   const [lastCode, setLastCode] = useState("");
   const [manualCode, setManualCode] = useState("");
   const [nnInfo, setNnInfo] = useState(false);
+  const [qtyText, setQtyText] = useState("");
+  const [qtyFocused, setQtyFocused] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const controlsRef = useRef<IScannerControls | null>(null);
   const lookupGuard = useRef(false);
@@ -260,10 +262,12 @@ export default function BarcodeScanModal({
                 −
               </button>
               <input
-                type="number"
-                min="0"
-                value={qty}
-                onChange={(e) => setQty(Math.max(0, Number(e.target.value) || 0))}
+                type="text"
+                inputMode="decimal"
+                value={qtyFocused ? qtyText : String(qty)}
+                onFocus={(e) => { setQtyFocused(true); setQtyText(String(qty)); e.currentTarget.select(); }}
+                onBlur={() => setQtyFocused(false)}
+                onChange={(e) => { const t = e.target.value; setQtyText(t); if (t.trim() === "") return; const n = Number(t.replace(",", ".")); if (Number.isFinite(n)) setQty(Math.max(0, n)); }}
               />
               <span className="unit-pill">{unitLabelOf(unit, product)}</span>
               <button className="qty-btn" onClick={() => setQty((q) => Math.round((q + step) * 10) / 10)}>

@@ -93,6 +93,8 @@ export default function SnapModal({
   const [hint, setHint] = useState("");
   const [correcting, setCorrecting] = useState(false);
   const [listening, setListening] = useState(false);
+  const [editUid, setEditUid] = useState<string | null>(null);
+  const [editText, setEditText] = useState("");
   const lastFile = useRef<File | null>(null);
   const cameraRef = useRef<HTMLInputElement>(null);
   const libraryRef = useRef<HTMLInputElement>(null);
@@ -287,7 +289,7 @@ export default function SnapModal({
                     <div className="snap-item-row">
                       <label>Portion</label>
                       <button className="qty-btn" onClick={() => updateItem(it.uid, { grams: Math.max(0, it.grams - 10) })}>−</button>
-                      <input type="number" min="0" value={it.grams} onChange={(e) => updateItem(it.uid, { grams: Math.max(0, Number(e.target.value) || 0) })} />
+                      <input type="text" inputMode="decimal" value={editUid === it.uid ? editText : String(it.grams)} onFocus={(e) => { setEditUid(it.uid); setEditText(String(it.grams)); e.currentTarget.select(); }} onBlur={() => setEditUid(null)} onChange={(e) => { const t = e.target.value; setEditText(t); if (t.trim() === "") return; const n = Number(t.replace(",", ".")); if (Number.isFinite(n)) updateItem(it.uid, { grams: Math.max(0, n) }); }} />
                       <span className="unit-pill">g</span>
                       <button className="qty-btn" onClick={() => updateItem(it.uid, { grams: it.grams + 10 })}>+</button>
                     </div>

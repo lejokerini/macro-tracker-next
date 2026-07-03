@@ -715,12 +715,14 @@ function QuantityPicker({ value, onChange, food, unit, onUnitChange }: { value: 
   const stepV = isPiece ? 1 : effUnit === "cl" ? 5 : 10;
   const pill = isPiece ? `${food?.servingLabel || "pièce"}(s)` : effUnit;
   const safeChange = (next: number) => onChange(Math.max(0, Math.round((Number.isFinite(next) ? next : 0) * 10) / 10));
+  const [text, setText] = useState(String(value));
+  const [focused, setFocused] = useState(false);
   return <div className="quantity-card">
     {controlled && <div className="unit-select"><span className="muted">Unité :</span>{(["piece", "g", "cl"] as const).map(u2 => <button key={u2} type="button" className={`filter-chip ${unit === u2 ? "active" : ""}`} onClick={() => onUnitChange!(u2)}>{u2 === "piece" ? "Pièce" : u2}</button>)}</div>}
     <div className="space"><label style={{margin:0}}>Quantité</label><span className="muted">{isPiece ? `1 ${food?.servingLabel || "pièce"} ≈ ${estimateServingGrams(food)} g` : "Base 100 g/ml, calcul ajusté"}</span></div>
     <div className="quantity-row">
       <button type="button" className="qty-btn" onClick={()=>safeChange(value - stepV)}>−</button>
-      <input type="number" min="0" value={value} onChange={e=>safeChange(Number(e.target.value))}/>
+      <input type="text" inputMode="decimal" value={focused ? text : String(value)} onFocus={e=>{ setFocused(true); setText(String(value)); e.currentTarget.select(); }} onBlur={()=>setFocused(false)} onChange={e=>{ const t=e.target.value; setText(t); if(t.trim()==="") return; const n=Number(t.replace(",",".")); if(Number.isFinite(n)) safeChange(n); }}/>
       <span className="unit-pill">{pill}</span>
       <button type="button" className="qty-btn" onClick={()=>safeChange(value + stepV)}>+</button>
     </div>
