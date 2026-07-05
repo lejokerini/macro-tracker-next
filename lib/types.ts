@@ -47,6 +47,7 @@ export type Profile = {
   proteinPerKg?: number;
   customBmr?: number;   // métabolisme de base fourni par l'utilisateur (kcal), sinon calculé
   customKcal?: number;  // calories/jour fixées manuellement (prime sur le calcul)
+  customWaterMl?: number; // objectif d'hydratation fixé manuellement (ml), sinon 35 ml/kg
   diet: DietType;
   weeklyBudget: number;
   store: Store;
