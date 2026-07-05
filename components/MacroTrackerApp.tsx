@@ -599,9 +599,9 @@ export default function MacroTrackerApp() {
       <div className="brand">
         <div className="brand-head"><img className="brand-logo" src="/logo-mark.svg" alt="Macrolens" width={56} height={56} /><h1>Macro<span>lens</span></h1></div>
         <div className="hero-badges">
-          {streak > 0 && <span className="badge-streak">🔥 {streak} j de suite</span>}
-          <span>{CIQUAL_FOOD_COUNT.toLocaleString("fr-FR")} aliments Ciqual</span>
-          <span>{seedRecipes.length} recettes</span>
+          {streak > 0 && <button type="button" className="badge-streak" onClick={()=>setTab("progres")}>🔥 {streak} j de suite</button>}
+          <button type="button" className="hero-link" onClick={()=>setTab("catalogue")}>{CIQUAL_FOOD_COUNT.toLocaleString("fr-FR")} aliments Ciqual</button>
+          <button type="button" className="hero-link" onClick={()=>setTab("recettes")}>{seedRecipes.length} recettes</button>
           <span>Quantités ajustables</span>
         </div>
       </div>
