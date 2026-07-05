@@ -191,6 +191,9 @@ button,input,select,textarea{font:inherit}
 [data-theme="dark"] .hero-badges .hero-link:hover{background:#1c2f20}
 button.badge-streak{cursor:pointer;transition:.16s ease}
 button.badge-streak:hover{transform:translateY(-1px);filter:saturate(1.05)}
+.clickable-nav{cursor:pointer;transition:border-color .16s ease, filter .16s ease}
+.chart-card.clickable-nav:hover{border-color:#cbdcbd}
+.profile-card.clickable-nav:hover{filter:brightness(1.05)}
 [data-theme="dark"] .tabs{background:linear-gradient(to bottom,rgba(15,20,16,.96),rgba(15,20,16,.7))}
 [data-theme="dark"] .tab{background:#18211a;border-color:#2a362c;color:#b9c7b6}
 [data-theme="dark"] .tab:hover{background:#1f2a20;border-color:#3a4d3c}
