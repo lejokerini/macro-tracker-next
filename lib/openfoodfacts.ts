@@ -261,7 +261,13 @@ export function openFoodFactsProductToFood(product: OpenFoodFactsProduct): Food 
     allergens: mapOffAllergens(product),
     prices: defaultPrices(priceGuess(product)),
     macros: {
-      kcal: Math.round(n(nutriments["energy-kcal_100g"] ?? nutriments["energy-kcal"] ?? nutriments["energy-kj_100g"]) || 0),
+      kcal: ((): number => {
+        const kc = n(nutriments["energy-kcal_100g"] ?? nutriments["energy-kcal"]);
+        if (kc > 0) return Math.round(kc);
+        const kj = n(nutriments["energy-kj_100g"] ?? nutriments["energy_100g"]);
+        if (kj > 0) return Math.round(kj / 4.184); // kJ -> kcal
+        return Math.round(n(nutriments.proteins_100g) * 4 + n(nutriments.carbohydrates_100g) * 4 + n(nutriments.fat_100g) * 9); // sinon, estimé depuis les macros
+      })(),
       protein: n(nutriments.proteins_100g),
       carbs: n(nutriments.carbohydrates_100g),
       fat: n(nutriments.fat_100g),

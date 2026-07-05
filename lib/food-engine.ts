@@ -90,7 +90,7 @@ const localFoods: Food[] = rawFoods.map((f, index) => {
     diets: inferDiets(f.name),
     allergens: inferAllergens(f.name),
     prices,
-    macros: { kcal: f.kcal, protein: f.p, carbs: f.g, fat: f.l, fiber: Number(f.f || 0) },
+    macros: { kcal: Number(f.kcal) > 0 ? Number(f.kcal) : Math.round(Number(f.p || 0) * 4 + Number(f.g || 0) * 4 + Number(f.l || 0) * 9), protein: f.p, carbs: f.g, fat: f.l, fiber: Number(f.f || 0) },
     micros: { vitA: Number(f.vitA || 0), vitC: Number(f.vitC || 0), ca: Number(f.ca || 0), fe: Number(f.fe || 0), mg: Number(f.mg || 0), na: Number(f.na || 0) },
     reliability: index < 240 ? "standard" : "estime",
     source: index < 240 ? "manual" : "estimated",

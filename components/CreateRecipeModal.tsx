@@ -34,6 +34,8 @@ export default function CreateRecipeModal({
   const [storageDays, setStorageDays] = useState(3);
   const [query, setQuery] = useState("");
   const [ingredients, setIngredients] = useState<{ foodId: string; qty: number }[]>([]);
+  const [editFoodId, setEditFoodId] = useState<string | null>(null);
+  const [editQtyText, setEditQtyText] = useState("");
 
   const results = useMemo(() => (query.trim().length >= 2 ? searchFoods(query).slice(0, 8) : []), [query]);
   const macros = useMemo(() => sumIngredients(ingredients), [ingredients]);
@@ -114,7 +116,7 @@ export default function CreateRecipeModal({
                 <div className="item space" key={i.foodId}>
                   <span>{f?.name || i.foodId}</span>
                   <div className="row" style={{ gap: 6 }}>
-                    <input type="number" min="0" value={i.qty} onChange={(e) => updateQty(i.foodId, Number(e.target.value) || 0)} style={{ width: 80, textAlign: "center" }} />
+                    <input type="text" inputMode="decimal" value={editFoodId === i.foodId ? editQtyText : String(i.qty)} onFocus={(e) => { setEditFoodId(i.foodId); setEditQtyText(String(i.qty)); e.currentTarget.select(); }} onBlur={() => setEditFoodId(null)} onChange={(e) => { const t = e.target.value; setEditQtyText(t); if (t.trim() === "") return; const n = Number(t.replace(",", ".")); if (Number.isFinite(n)) updateQty(i.foodId, Math.max(0, n)); }} style={{ width: 80, textAlign: "center" }} />
                     <span className="unit-pill">g</span>
                     <button className="btn danger" onClick={() => removeIngredient(i.foodId)}>✕</button>
                   </div>
