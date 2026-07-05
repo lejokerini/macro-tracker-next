@@ -36,6 +36,8 @@ export default function CreateRecipeModal({
   const [ingredients, setIngredients] = useState<{ foodId: string; qty: number }[]>([]);
   const [editFoodId, setEditFoodId] = useState<string | null>(null);
   const [editQtyText, setEditQtyText] = useState("");
+  const [prepText, setPrepText] = useState<string | null>(null);
+  const [storageText, setStorageText] = useState<string | null>(null);
 
   const results = useMemo(() => (query.trim().length >= 2 ? searchFoods(query).slice(0, 8) : []), [query]);
   const macros = useMemo(() => sumIngredients(ingredients), [ingredients]);
@@ -91,8 +93,8 @@ export default function CreateRecipeModal({
         <div className="grid" style={{ marginTop: 6 }}>
           <div className="span-12"><label>{tr("cr.name")}</label><input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={tr("cr.namePlaceholder")} /></div>
           <div className="span-4"><label>{tr("common.meal")}</label><select value={mealType} onChange={(e) => setMealType(e.target.value as MealType)}>{MEALS.map((m) => (<option key={m} value={m}>{tr("meal."+m)}</option>))}</select></div>
-          <div className="span-4"><label>{tr("cr.time")}</label><input type="number" min="1" value={prepTime} onChange={(e) => setPrepTime(Number(e.target.value) || 0)} /></div>
-          <div className="span-4"><label>{tr("cr.storage")}</label><input type="number" min="1" value={storageDays} onChange={(e) => setStorageDays(Number(e.target.value) || 0)} /></div>
+          <div className="span-4"><label>{tr("cr.time")}</label><input type="text" inputMode="numeric" value={prepText ?? String(prepTime)} onFocus={(e) => { setPrepText(String(prepTime)); e.currentTarget.select(); }} onBlur={() => setPrepText(null)} onChange={(e) => { const t = e.target.value; setPrepText(t); if (t.trim() === "") return; const n = Number(t.replace(",", ".")); if (Number.isFinite(n)) setPrepTime(Math.max(1, Math.round(n))); }} /></div>
+          <div className="span-4"><label>{tr("cr.storage")}</label><input type="text" inputMode="numeric" value={storageText ?? String(storageDays)} onFocus={(e) => { setStorageText(String(storageDays)); e.currentTarget.select(); }} onBlur={() => setStorageText(null)} onChange={(e) => { const t = e.target.value; setStorageText(t); if (t.trim() === "") return; const n = Number(t.replace(",", ".")); if (Number.isFinite(n)) setStorageDays(Math.max(1, Math.round(n))); }} /></div>
         </div>
 
         <label style={{ marginTop: 10 }}>{tr("cr.addIngredient")}</label>
