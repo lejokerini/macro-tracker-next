@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import type { DietType, Food, MealType, Recipe } from "@/lib/types";
 import { findFood, searchFoods } from "@/lib/food-engine";
 import { sumIngredients } from "@/lib/nutrition";
+import { makeT } from "@/lib/i18n";
 
 const MEALS: MealType[] = ["Petit-déjeuner", "Déjeuner", "Dîner", "Collation"];
 const ALL_DIETS: DietType[] = ["omnivore", "flexitarien", "pescetarien", "vegetarien", "vegan", "sans_porc"];
@@ -19,11 +20,14 @@ export default function CreateRecipeModal({
   open,
   onClose,
   onSave,
+  lang = "fr",
 }: {
   open: boolean;
   onClose: () => void;
   onSave: (recipe: Recipe) => void;
+  lang?: string;
 }) {
+  const tr = makeT(lang === "es" ? "es" : "fr");
   const [title, setTitle] = useState("");
   const [mealType, setMealType] = useState<MealType>("Déjeuner");
   const [prepTime, setPrepTime] = useState(20);
@@ -78,25 +82,25 @@ export default function CreateRecipeModal({
     <div className="snap-overlay" role="dialog" aria-modal="true">
       <div className="snap-modal">
         <div className="snap-head">
-          <h2>➕ Créer une recette</h2>
-          <button className="snap-close" onClick={close} aria-label="Fermer">✕</button>
+          <h2>{tr("cr.title")}</h2>
+          <button className="snap-close" onClick={close} aria-label={tr("common.close")}>✕</button>
         </div>
 
         <div className="grid" style={{ marginTop: 6 }}>
-          <div className="span-12"><label>Nom de la recette</label><input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="ex. Bowl poulet patate douce maison" /></div>
-          <div className="span-4"><label>Repas</label><select value={mealType} onChange={(e) => setMealType(e.target.value as MealType)}>{MEALS.map((m) => (<option key={m}>{m}</option>))}</select></div>
-          <div className="span-4"><label>Temps (min)</label><input type="number" min="1" value={prepTime} onChange={(e) => setPrepTime(Number(e.target.value) || 0)} /></div>
-          <div className="span-4"><label>Conservation (j)</label><input type="number" min="1" value={storageDays} onChange={(e) => setStorageDays(Number(e.target.value) || 0)} /></div>
+          <div className="span-12"><label>{tr("cr.name")}</label><input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={tr("cr.namePlaceholder")} /></div>
+          <div className="span-4"><label>{tr("common.meal")}</label><select value={mealType} onChange={(e) => setMealType(e.target.value as MealType)}>{MEALS.map((m) => (<option key={m} value={m}>{tr("meal."+m)}</option>))}</select></div>
+          <div className="span-4"><label>{tr("cr.time")}</label><input type="number" min="1" value={prepTime} onChange={(e) => setPrepTime(Number(e.target.value) || 0)} /></div>
+          <div className="span-4"><label>{tr("cr.storage")}</label><input type="number" min="1" value={storageDays} onChange={(e) => setStorageDays(Number(e.target.value) || 0)} /></div>
         </div>
 
-        <label style={{ marginTop: 10 }}>Ajouter un ingrédient</label>
-        <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Rechercher un aliment…" />
+        <label style={{ marginTop: 10 }}>{tr("cr.addIngredient")}</label>
+        <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={tr("cr.searchFood")} />
         {results.length > 0 && (
           <div className="product-results" style={{ marginTop: 8 }}>
             {results.map((f) => (
               <button type="button" key={f.id} className="product-choice" onClick={() => addIngredient(f.id)}>
                 <span className="product-choice-text"><strong>{f.name}</strong><small>{f.macros.kcal} kcal/100g · P{f.macros.protein} G{f.macros.carbs} L{f.macros.fat}</small></span>
-                <span className="source-badge">+ Ajouter</span>
+                <span className="source-badge">{tr("cr.add")}</span>
               </button>
             ))}
           </div>
@@ -125,12 +129,12 @@ export default function CreateRecipeModal({
           <span>P {Math.round(macros.protein)}g</span>
           <span>G {Math.round(macros.carbs)}g</span>
           <span>L {Math.round(macros.fat)}g</span>
-          <span>Fibres {Math.round(macros.fiber)}g</span>
+          <span>{tr("common.fiber")} {Math.round(macros.fiber)}g</span>
         </div>
 
         <div className="snap-footer">
-          <button className="btn secondary" onClick={close}>Annuler</button>
-          <button className="btn" disabled={!title.trim() || !ingredients.some((i) => i.qty > 0)} onClick={save}>Enregistrer la recette</button>
+          <button className="btn secondary" onClick={close}>{tr("common.cancel")}</button>
+          <button className="btn" disabled={!title.trim() || !ingredients.some((i) => i.qty > 0)} onClick={save}>{tr("cr.save")}</button>
         </div>
       </div>
     </div>

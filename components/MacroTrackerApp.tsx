@@ -679,9 +679,9 @@ export default function MacroTrackerApp() {
 
     <SnapModal open={snapOpen} onClose={()=>setSnapOpen(false)} onConfirm={addScannedItems} onScanBarcode={()=>{ setSnapOpen(false); setBarcodeOpen(true); }} defaultMeal={selectedMeal} date={date} dailyLimit={state.premium ? 50 : 5} isPremium={!!state.premium} lang={lang} />
     <BarcodeScanModal open={barcodeOpen} onClose={()=>setBarcodeOpen(false)} onConfirm={addBarcodeFood} defaultMeal={selectedMeal} date={date} lang={lang} />
-    <BodyFatModal open={bfModalOpen} onClose={()=>setBfModalOpen(false)} onApply={(v)=>{ setBodyFat(String(v)); setBfModalOpen(false); }} defaultSex={activeProfile?.sex || "homme"} defaultHeight={activeProfile?.heightCm} />
+    <BodyFatModal open={bfModalOpen} onClose={()=>setBfModalOpen(false)} onApply={(v)=>{ setBodyFat(String(v)); setBfModalOpen(false); }} defaultSex={activeProfile?.sex || "homme"} defaultHeight={activeProfile?.heightCm} lang={lang} />
     <MacroInfoModal macro={macroInfo} onClose={()=>setMacroInfo(null)} />
-    <CreateRecipeModal open={createRecipeOpen} onClose={()=>setCreateRecipeOpen(false)} onSave={addCustomRecipe} />
+    <CreateRecipeModal open={createRecipeOpen} onClose={()=>setCreateRecipeOpen(false)} onSave={addCustomRecipe} lang={lang} />
     <MicroDetailModal micro={microDetail} onClose={()=>setMicroDetail(null)} />
     <BmiInfoModal open={bmiInfoOpen} onClose={()=>setBmiInfoOpen(false)} />
     <MetabolismInfoModal open={metabInfoOpen} onClose={()=>setMetabInfoOpen(false)} sex={activeProfile?.sex || "homme"} />
