@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import type { MealType } from "@/lib/types";
 import { toEditableItem, type EditableScanItem, type ScanItem } from "@/lib/calsnap";
+import { makeT } from "@/lib/i18n";
 
 const MEALS: MealType[] = ["Petit-déjeuner", "Déjeuner", "Dîner", "Collation"];
 
@@ -27,10 +28,10 @@ function bumpSnapUsage() {
   } catch {}
 }
 
-const CONFIDENCE_LABEL: Record<EditableScanItem["confidence"], { text: string; color: string }> = {
-  high: { text: "Confiance élevée", color: "#15803d" },
-  medium: { text: "Confiance moyenne", color: "#b45309" },
-  low: { text: "Confiance faible", color: "#b91c1c" },
+const CONFIDENCE_LABEL: Record<EditableScanItem["confidence"], { key: string; color: string }> = {
+  high: { key: "snap.confHigh", color: "#15803d" },
+  medium: { key: "snap.confMedium", color: "#b45309" },
+  low: { key: "snap.confLow", color: "#b91c1c" },
 };
 
 function scaled(item: EditableScanItem) {
@@ -85,6 +86,7 @@ export default function SnapModal({
   isPremium?: boolean;
   lang?: string;
 }) {
+  const tr = makeT(lang === "es" ? "es" : "fr");
   const [preview, setPreview] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -230,8 +232,8 @@ export default function SnapModal({
     <div className="snap-overlay" role="dialog" aria-modal="true">
       <div className="snap-modal">
         <div className="snap-head">
-          <h2>📸 Snap mon repas</h2>
-          <button className="snap-close" onClick={close} aria-label="Fermer">✕</button>
+          <h2>{tr("snap.title")}</h2>
+          <button className="snap-close" onClick={close} aria-label={tr("common.close")}>✕</button>
         </div>
 
         <input ref={cameraRef} type="file" accept="image/*" capture="environment" style={{ display: "none" }} onChange={(e) => handleFile(e.target.files?.[0] || null)} />
@@ -239,18 +241,18 @@ export default function SnapModal({
 
         {!preview && !analyzed && (
           <div className="snap-capture-zone">
-            <p className="muted">Prends ton repas en photo, ou décris-le : l'IA estime les calories et les macros.</p>
+            <p className="muted">{tr("snap.intro")}</p>
             <div className="row" style={{ justifyContent: "center", flexWrap: "wrap" }}>
-              <button className="btn" onClick={() => cameraRef.current?.click()}>📷 Prendre une photo</button>
-              <button className="btn secondary" onClick={() => libraryRef.current?.click()}>🖼️ Importer</button>
-              {onScanBarcode && <button className="btn secondary" onClick={() => { reset(); onScanBarcode(); }}>🏷️ Code-barres</button>}
+              <button className="btn" onClick={() => cameraRef.current?.click()}>{tr("snap.takePhoto")}</button>
+              <button className="btn secondary" onClick={() => libraryRef.current?.click()}>{tr("snap.import")}</button>
+              {onScanBarcode && <button className="btn secondary" onClick={() => { reset(); onScanBarcode(); }}>{tr("snap.barcode")}</button>}
             </div>
             <div className="snap-describe">
-              <label>Ou décris ton repas</label>
-              <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="ex. 2 œufs, 100 g de riz et une banane" rows={2} />
+              <label>{tr("snap.describeLabel")}</label>
+              <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder={tr("snap.describePlaceholder")} rows={2} />
               <div className="row">
-                {speechSupported && <button type="button" className={`btn secondary ${listening ? "mic-on" : ""}`} onClick={toggleDictation}>{listening ? "🎙️ Écoute…" : "🎤 Dicter"}</button>}
-                <button className="btn secondary" disabled={description.trim().length < 3} onClick={handleText}>✍️ Analyser la description</button>
+                {speechSupported && <button type="button" className={`btn secondary ${listening ? "mic-on" : ""}`} onClick={toggleDictation}>{listening ? tr("snap.listening") : tr("snap.dictate")}</button>}
+                <button className="btn secondary" disabled={description.trim().length < 3} onClick={handleText}>{tr("snap.analyzeDesc")}</button>
               </div>
             </div>
           </div>
@@ -260,18 +262,18 @@ export default function SnapModal({
           <div className="snap-preview">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={preview} alt="Aperçu du repas" />
-            <button className="btn secondary" onClick={reset}>Reprendre / recommencer</button>
+            <button className="btn secondary" onClick={reset}>{tr("snap.retake")}</button>
           </div>
         )}
 
-        {loading && <p className="snap-status">Analyse en cours…</p>}
+        {loading && <p className="snap-status">{tr("snap.analyzing")}</p>}
         {error && (
           <div className="snap-fallback">
             <p className="snap-status snap-error" style={{ margin: 0 }}>{error}</p>
             {onScanBarcode && (
               <div className="row" style={{ justifyContent: "center", marginTop: 8, flexWrap: "wrap" }}>
-                <button className="btn secondary" onClick={() => { reset(); onScanBarcode(); }}>🏷️ Scanner un code-barres</button>
-                <button className="btn secondary" onClick={close}>🔎 Chercher un aliment</button>
+                <button className="btn secondary" onClick={() => { reset(); onScanBarcode(); }}>{tr("snap.scanBarcode")}</button>
+                <button className="btn secondary" onClick={close}>{tr("snap.searchFood")}</button>
               </div>
             )}
           </div>
@@ -287,10 +289,10 @@ export default function SnapModal({
                   <div className="snap-item" key={it.uid}>
                     <div className="snap-item-top">
                       <input className="snap-name" value={it.name} onChange={(e) => updateItem(it.uid, { name: e.target.value })} />
-                      <button className="snap-remove" onClick={() => removeItem(it.uid)} aria-label="Retirer">✕</button>
+                      <button className="snap-remove" onClick={() => removeItem(it.uid)} aria-label={tr("journal.remove")}>✕</button>
                     </div>
                     <div className="snap-item-row">
-                      <label>Portion</label>
+                      <label>{tr("snap.portion")}</label>
                       <button className="qty-btn" onClick={() => updateItem(it.uid, { grams: Math.max(0, it.grams - 10) })}>−</button>
                       <input type="text" inputMode="decimal" value={editUid === it.uid ? editText : String(it.grams)} onFocus={(e) => { setEditUid(it.uid); setEditText(String(it.grams)); e.currentTarget.select(); }} onBlur={() => setEditUid(null)} onChange={(e) => { const t = e.target.value; setEditText(t); if (t.trim() === "") return; const n = Number(t.replace(",", ".")); if (Number.isFinite(n)) updateItem(it.uid, { grams: Math.max(0, n) }); }} />
                       <span className="unit-pill">g</span>
@@ -299,35 +301,35 @@ export default function SnapModal({
                     <div className="snap-macros">
                       <span>{s.kcal} kcal</span><span>P {s.protein}g</span><span>G {s.carbs}g</span><span>L {s.fat}g</span>
                     </div>
-                    <span className="snap-confidence" style={{ color: conf.color }}>{conf.text}</span>
+                    <span className="snap-confidence" style={{ color: conf.color }}>{tr(conf.key)}</span>
                   </div>
                 );
               })}
             </div>
 
             <div className="snap-total">
-              <strong>Total : {totals.kcal} kcal</strong>
+              <strong>{tr("snap.total")}{totals.kcal} kcal</strong>
               <span>P {totals.protein}g · G {totals.carbs}g · L {totals.fat}g</span>
             </div>
 
             {!correcting ? (
-              <button className="btn secondary snap-correct-btn" onClick={() => setCorrecting(true)}>✏️ Corriger le résultat</button>
+              <button className="btn secondary snap-correct-btn" onClick={() => setCorrecting(true)}>{tr("snap.correct")}</button>
             ) : (
               <div className="snap-describe">
-                <label>Qu'est-ce qui ne va pas ?</label>
-                <textarea value={hint} onChange={(e) => setHint(e.target.value)} placeholder="ex. c'est du poulet pas du poisson, et la portion est plus petite" rows={2} />
-                <button className="btn" disabled={hint.trim().length < 2 || loading} onClick={handleCorrect}>🔄 Relancer l'analyse</button>
+                <label>{tr("snap.whatsWrong")}</label>
+                <textarea value={hint} onChange={(e) => setHint(e.target.value)} placeholder={tr("snap.correctPlaceholder")} rows={2} />
+                <button className="btn" disabled={hint.trim().length < 2 || loading} onClick={handleCorrect}>{tr("snap.reanalyze")}</button>
               </div>
             )}
 
             <div className="snap-footer">
               <div className="snap-meal">
-                <label>Repas du {date}</label>
+                <label>{tr("snap.mealOf")}{date}</label>
                 <select value={meal} onChange={(e) => setMeal(e.target.value as MealType)}>
-                  {MEALS.map((m) => (<option key={m}>{m}</option>))}
+                  {MEALS.map((m) => (<option key={m} value={m}>{tr("meal."+m)}</option>))}
                 </select>
               </div>
-              <button className="btn" disabled={!items.length} onClick={() => { onConfirm(items.filter((it) => it.grams > 0), meal); close(); }}>Ajouter au journal</button>
+              <button className="btn" disabled={!items.length} onClick={() => { onConfirm(items.filter((it) => it.grams > 0), meal); close(); }}>{tr("journal.addToJournal")}</button>
             </div>
           </>
         )}

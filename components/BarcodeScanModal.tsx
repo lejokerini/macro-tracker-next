@@ -5,6 +5,7 @@ import { BrowserMultiFormatReader, type IScannerControls } from "@zxing/browser"
 import type { Food, MealType } from "@/lib/types";
 import { fetchOpenFoodFactsByBarcode } from "@/lib/openfoodfacts";
 import { estimateServingGrams, isPieceInput } from "@/lib/food-engine";
+import { makeT } from "@/lib/i18n";
 
 const MEALS: MealType[] = ["Petit-déjeuner", "Déjeuner", "Dîner", "Collation"];
 
@@ -38,13 +39,16 @@ export default function BarcodeScanModal({
   onConfirm,
   defaultMeal,
   date,
+  lang = "fr",
 }: {
   open: boolean;
   onClose: () => void;
   onConfirm: (food: Food, baseGrams: number, displayQty: number, displayUnit: QUnit, meal: MealType) => void;
   defaultMeal: MealType;
   date: string;
+  lang?: string;
 }) {
+  const tr = makeT(lang === "es" ? "es" : "fr");
   const [phase, setPhase] = useState<Phase>("scan");
   const [product, setProduct] = useState<Food | null>(null);
   const [qty, setQty] = useState(100);
@@ -84,7 +88,7 @@ export default function BarcodeScanModal({
         setPhase("notfound");
       }
     } catch {
-      setErrorMsg("Recherche Open Food Facts indisponible. Réessaie ou saisis le code à la main.");
+      setErrorMsg(tr("bc.errOff"));
       setPhase("error");
     } finally {
       lookupGuard.current = false;
@@ -105,7 +109,7 @@ export default function BarcodeScanModal({
         else controlsRef.current = controls;
       } catch {
         if (!cancelled) {
-          setErrorMsg("Caméra inaccessible. Autorise la caméra dans le navigateur, ou saisis le code à la main.");
+          setErrorMsg(tr("bc.errCamera"));
           setPhase("error");
         }
       }
@@ -149,8 +153,8 @@ export default function BarcodeScanModal({
     <div className="snap-overlay" role="dialog" aria-modal="true">
       <div className="snap-modal">
         <div className="snap-head">
-          <h2>🏷️ Scanner un code-barres</h2>
-          <button className="snap-close" onClick={close} aria-label="Fermer">
+          <h2>{tr("bc.title")}</h2>
+          <button className="snap-close" onClick={close} aria-label={tr("common.close")}>
             ✕
           </button>
         </div>
@@ -161,9 +165,9 @@ export default function BarcodeScanModal({
               <video ref={videoRef} muted playsInline />
               <div className="barcode-frame" />
             </div>
-            <p className="snap-status barcode-hint">Vise le code-barres du produit…</p>
+            <p className="snap-status barcode-hint">{tr("bc.aim")}</p>
             <div className="barcode-manual">
-              <label>Ou saisis le code manuellement</label>
+              <label>{tr("bc.manualLabel")}</label>
               <div className="row">
                 <input
                   inputMode="numeric"
@@ -172,20 +176,20 @@ export default function BarcodeScanModal({
                   placeholder="ex. 7622210449283"
                 />
                 <button className="btn secondary" disabled={manualCode.length < 8} onClick={() => lookup(manualCode)}>
-                  Chercher
+                  {tr("bc.search")}
                 </button>
               </div>
             </div>
           </>
         )}
 
-        {phase === "fetching" && <p className="snap-status">Recherche du produit… ({lastCode})</p>}
+        {phase === "fetching" && <p className="snap-status">{tr("bc.searching")}({lastCode})</p>}
 
         {phase === "notfound" && (
           <div className="barcode-message">
-            <p className="snap-status snap-error">Produit introuvable pour le code {lastCode}.</p>
-            <p className="muted">Tous les produits ne sont pas dans Open Food Facts. Tu peux réessayer ou l'ajouter via la recherche par nom.</p>
-            <button className="btn" onClick={rescan}>Scanner à nouveau</button>
+            <p className="snap-status snap-error">{tr("bc.notFoundPre")}{lastCode}.</p>
+            <p className="muted">{tr("bc.notFoundHint")}</p>
+            <button className="btn" onClick={rescan}>{tr("bc.scanAgain")}</button>
           </div>
         )}
 
@@ -193,7 +197,7 @@ export default function BarcodeScanModal({
           <div className="barcode-message">
             <p className="snap-status snap-error">{errorMsg}</p>
             <div className="barcode-manual">
-              <label>Saisir le code manuellement</label>
+              <label>{tr("bc.manualLabel2")}</label>
               <div className="row">
                 <input
                   inputMode="numeric"
@@ -202,11 +206,11 @@ export default function BarcodeScanModal({
                   placeholder="ex. 7622210449283"
                 />
                 <button className="btn secondary" disabled={manualCode.length < 8} onClick={() => lookup(manualCode)}>
-                  Chercher
+                  {tr("bc.search")}
                 </button>
               </div>
             </div>
-            <button className="btn" onClick={rescan}>Réessayer la caméra</button>
+            <button className="btn" onClick={rescan}>{tr("bc.retryCamera")}</button>
           </div>
         )}
 
@@ -224,7 +228,7 @@ export default function BarcodeScanModal({
               <div className="product-info">
                 <h3>{product.name}</h3>
                 <p className="muted">
-                  {product.brand ? `${product.brand} · ` : ""}Code {product.barcode}
+                  {product.brand ? `${product.brand} · ` : ""}{tr("bc.code")}{product.barcode}
                   {unit === "piece" ? ` · 1 ${product.servingLabel || "portion"} ≈ ${estimateServingGrams(product)} g` : ""}
                 </p>
                 {(product.nutriScore || product.novaGroup) && (
@@ -244,7 +248,7 @@ export default function BarcodeScanModal({
             </div>
 
             <div className="unit-select">
-              <span className="muted">Unité :</span>
+              <span className="muted">{tr("bc.unit")}</span>
               {(["piece", "g", "cl"] as QUnit[]).map((u) => (
                 <button
                   key={u}
@@ -252,12 +256,12 @@ export default function BarcodeScanModal({
                   className={`filter-chip ${unit === u ? "active" : ""}`}
                   onClick={() => { setUnit(u); setQty(u === "piece" ? 1 : u === "cl" ? 25 : 100); }}
                 >
-                  {u === "piece" ? "Pièce" : u}
+                  {u === "piece" ? tr("bc.piece") : u}
                 </button>
               ))}
             </div>
             <div className="snap-item-row">
-              <label>Quantité</label>
+              <label>{tr("bc.quantity")}</label>
               <button className="qty-btn" onClick={() => setQty((q) => Math.max(0, Math.round((q - step) * 10) / 10))}>
                 −
               </button>
@@ -274,19 +278,19 @@ export default function BarcodeScanModal({
                 +
               </button>
             </div>
-            {unit !== "g" && <p className="muted" style={{ margin: "0 0 8px" }}>≈ {preview.grams} g au total</p>}
+            {unit !== "g" && <p className="muted" style={{ margin: "0 0 8px" }}>≈ {preview.grams} {tr("bc.gTotal")}</p>}
 
             <div className="snap-footer">
               <div className="snap-meal">
-                <label>Repas du {date}</label>
+                <label>{tr("snap.mealOf")}{date}</label>
                 <select value={meal} onChange={(e) => setMeal(e.target.value as MealType)}>
                   {MEALS.map((m) => (
-                    <option key={m}>{m}</option>
+                    <option key={m} value={m}>{tr("meal."+m)}</option>
                   ))}
                 </select>
               </div>
               <div className="row">
-                <button className="btn secondary" onClick={rescan}>Rescanner</button>
+                <button className="btn secondary" onClick={rescan}>{tr("bc.rescan")}</button>
                 <button
                   className="btn"
                   disabled={qty <= 0}
@@ -295,7 +299,7 @@ export default function BarcodeScanModal({
                     close();
                   }}
                 >
-                  Ajouter au journal
+                  {tr("journal.addToJournal")}
                 </button>
               </div>
             </div>
