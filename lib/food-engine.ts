@@ -292,6 +292,26 @@ const frCommonSeeds: FrSeed[] = [
   // Chaînes (par 100 g)
   { id:"fr_subway", name:"Sandwich Subway 15 cm", cat:"Plaisirs, Surgelés & Divers", kcal:165, p:10, c:24, f:4, fib:2, servingGrams:230, servingLabel:"15 cm", icon:"🥪", diets:D_MEAT, allergens:["gluten"], novaGroup:4, reliability:"estime", aliases:["subway","sub","sandwich subway"], sourceRef:"Subway 15 cm poulet/dinde, moyenne ~230 g, très variable selon la garniture." },
   { id:"fr_dominos", name:"Pizza Domino's (part)", cat:"Plaisirs, Surgelés & Divers", kcal:260, p:11, c:30, f:10, fib:2, servingGrams:80, servingLabel:"part", icon:"🍕", diets:D_VEGE, allergens:["gluten","lait"], novaGroup:4, reliability:"estime", aliases:["dominos","domino's","pizza dominos"], sourceRef:"Part de pizza Domino's, ~80 g, variable selon la recette." },
+  // Produits laitiers protéinés (par 100 g / 100 ml)
+  { id:"fr_danio", name:"Danio (yaourt protéiné)", cat:"Produits Laitiers & Crèmerie", kcal:79, p:7.5, c:10, f:0.9, fib:0, state:"standard", brand:"Danone", servingGrams:150, servingLabel:"pot", icon:"🥛", diets:D_VEGE, allergens:["lait"], nutriScore:"B", aliases:["danio","yaourt proteine","skyr danio"] },
+  { id:"fr_petit_suisse", name:"Petit-suisse", cat:"Produits Laitiers & Crèmerie", kcal:96, p:9, c:3.5, f:5, fib:0, state:"standard", servingGrams:60, servingLabel:"pot", icon:"🥛", diets:D_VEGE, allergens:["lait"], nutriScore:"B", aliases:["petit suisse","petit-suisse"] },
+  { id:"fr_cottage_cheese", name:"Cottage cheese", cat:"Produits Laitiers & Crèmerie", kcal:98, p:11, c:3.4, f:4.3, fib:0, state:"standard", icon:"🧀", diets:D_VEGE, allergens:["lait"], nutriScore:"B", aliases:["cottage cheese","fromage cottage","fromage blanc granuleux"] },
+  { id:"fr_yop", name:"Yaourt à boire (Yop)", cat:"Produits Laitiers & Crèmerie", kcal:78, p:3, c:13, f:1.5, fib:0, unit:"ml", state:"standard", brand:"Yop", icon:"🥛", diets:D_VEGE, allergens:["lait"], nutriScore:"C", aliases:["yop","yaourt a boire","yaourt a boire yop"] },
+  { id:"fr_actimel", name:"Actimel", cat:"Produits Laitiers & Crèmerie", kcal:71, p:2.7, c:11, f:1.5, fib:0, unit:"ml", state:"standard", brand:"Actimel", icon:"🥛", diets:D_VEGE, allergens:["lait"], nutriScore:"C", aliases:["actimel","yaourt a boire actimel"] },
+  // Pains spéciaux (par 100 g)
+  { id:"fr_pain_seigle", name:"Pain de seigle", cat:"Céréales & Pain", kcal:259, p:8, c:48, f:1.3, fib:7, state:"standard", icon:"🍞", diets:D_VEGAN, allergens:["gluten"], nutriScore:"A", aliases:["pain de seigle","seigle"] },
+  { id:"fr_wrap", name:"Wrap / tortilla de blé", cat:"Céréales & Pain", kcal:297, p:8, c:49, f:7, fib:3, state:"standard", icon:"🫓", diets:D_VEGAN, allergens:["gluten"], nutriScore:"C", novaGroup:4, aliases:["wrap","tortilla","tortilla de ble","galette de ble"] },
+  { id:"fr_pita", name:"Pain pita", cat:"Céréales & Pain", kcal:275, p:9, c:55, f:1.2, fib:2.5, state:"standard", icon:"🫓", diets:D_VEGAN, allergens:["gluten"], nutriScore:"B", aliases:["pita","pain pita"] },
+  { id:"fr_naan", name:"Naan", cat:"Céréales & Pain", kcal:310, p:9, c:50, f:8, fib:2.5, state:"standard", icon:"🫓", diets:D_VEGE, allergens:["gluten","lait"], nutriScore:"C", novaGroup:3, aliases:["naan","pain naan"] },
+  // Plats du monde (par 100 g)
+  { id:"fr_couscous", name:"Couscous (plat)", cat:"Plaisirs, Surgelés & Divers", kcal:150, p:7, c:20, f:4, fib:2, state:"cuit", icon:"🍲", diets:D_MEAT, allergens:["gluten"], reliability:"estime", aliases:["couscous"], sourceRef:"Semoule, légumes et viande : moyenne, variable." },
+  { id:"fr_curry_poulet", name:"Curry de poulet", cat:"Plaisirs, Surgelés & Divers", kcal:130, p:10, c:8, f:6, fib:1.5, state:"cuit", icon:"🍛", diets:D_MEAT, allergens:["lait"], reliability:"estime", aliases:["curry de poulet","poulet curry","curry poulet"] },
+  { id:"fr_chili", name:"Chili con carne", cat:"Plaisirs, Surgelés & Divers", kcal:130, p:8, c:12, f:5, fib:3, state:"cuit", icon:"🌶️", diets:D_MEAT, allergens:[], reliability:"estime", aliases:["chili","chili con carne"] },
+  { id:"fr_riz_cantonais", name:"Riz cantonais", cat:"Plaisirs, Surgelés & Divers", kcal:165, p:6, c:22, f:5, fib:1, state:"cuit", icon:"🍚", diets:D_MEAT, allergens:["oeufs","soja"], reliability:"estime", aliases:["riz cantonais","riz cantonnais"] },
+  { id:"fr_pad_thai", name:"Pad thaï", cat:"Plaisirs, Surgelés & Divers", kcal:155, p:7, c:20, f:5, fib:2, state:"cuit", icon:"🍜", diets:D_MEAT, allergens:["oeufs","fruits_a_coque","soja"], reliability:"estime", aliases:["pad thai","pad thaï"] },
+  { id:"fr_dahl", name:"Dahl de lentilles", cat:"Plaisirs, Surgelés & Divers", kcal:120, p:6, c:15, f:4, fib:4, state:"cuit", icon:"🍛", diets:D_VEGAN, allergens:[], reliability:"estime", aliases:["dahl","dhal","dahl de lentilles","curry de lentilles"] },
+  { id:"fr_poke_bowl", name:"Poke bowl saumon", cat:"Plaisirs, Surgelés & Divers", kcal:150, p:9, c:18, f:5, fib:2, state:"cuit", icon:"🍚", diets:D_FISH, allergens:["poisson","soja"], reliability:"estime", aliases:["poke bowl","poke","poke saumon"] },
+  { id:"fr_ramen", name:"Ramen", cat:"Plaisirs, Surgelés & Divers", kcal:90, p:4, c:12, f:2.5, fib:1, state:"cuit", icon:"🍜", diets:D_MEAT, allergens:["gluten","oeufs","soja"], reliability:"estime", aliases:["ramen","nouilles japonaises","soupe ramen"] },
 ];
 
 function makeFrFood(s: FrSeed): Food {
