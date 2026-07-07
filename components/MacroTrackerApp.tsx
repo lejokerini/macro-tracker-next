@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { ensureCiqualLoaded, estimateServingGrams, findFood, foods, formatQuantity, isPieceInput, quantityToNutritionGrams, searchFoods, STORES } from "@/lib/food-engine";
-import { adaptiveTDEE, average7, calculateTargets, logMacros, recipeMacros, sumIngredients, tdeeHistory, weightTrendRecommendation, weightTrendPerWeek } from "@/lib/nutrition";
+import { adaptiveTDEE, average7, calculateTargets, effortFueling, logMacros, recipeMacros, sumIngredients, tdeeHistory, weightTrendRecommendation, weightTrendPerWeek, type EffortIntensity } from "@/lib/nutrition";
 import { makeT, LANGS, type Lang } from "@/lib/i18n";
 import { buildShoppingList, generateProgram, scoreProgram } from "@/lib/planner";
 import { seedRecipes } from "@/data/recipes";
@@ -18,7 +18,7 @@ import { buildScannedFood, type EditableScanItem } from "@/lib/calsnap";
 import { CIQUAL_FOOD_COUNT } from "@/data/ciqual-meta";
 import type { DietType, Food, MealLogItem, MealType, PantryItem, Profile, ProgramMeal, Recipe, Store, WeightLog } from "@/lib/types";
 
-type Tab = "dashboard" | "profil" | "journal" | "catalogue" | "recettes" | "programme" | "courses" | "placard" | "poids" | "progres" | "sauvegarde";
+type Tab = "dashboard" | "profil" | "journal" | "catalogue" | "recettes" | "programme" | "courses" | "placard" | "poids" | "effort" | "progres" | "sauvegarde";
 type State = { profiles: Profile[]; activeProfileId?: string; logs: MealLogItem[]; pantry: PantryItem[]; weights: WeightLog[]; recipes: Recipe[]; program: ProgramMeal[]; offFoods: Food[]; favorites: string[]; water: Record<string, number>; premium?: boolean; lang?: Lang };
 type MicroKey = "sugars" | "salt" | "calcium" | "iron" | "magnesium" | "potassium" | "sodium" | "zinc" | "vitA" | "vitD" | "vitE" | "vitC" | "vitB1" | "vitB2" | "vitB3" | "vitB6" | "vitB9" | "vitB12";
 
@@ -182,6 +182,10 @@ export default function MacroTrackerApp() {
   const [authMessage, setAuthMessage] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [gentleStart, setGentleStart] = useState(true);
+  const [effortMin, setEffortMin] = useState(120);
+  const [effortIntensity, setEffortIntensity] = useState<EffortIntensity>("modere");
+  const [effortHeat, setEffortHeat] = useState(false);
+  const [effortSport, setEffortSport] = useState("run");
   const [syncStatus, setSyncStatus] = useState("");
   const [autoSync, setAutoSync] = useState(true);
   const [lastCloudSaveAt, setLastCloudSaveAt] = useState<string>("");
@@ -241,6 +245,7 @@ export default function MacroTrackerApp() {
   const maintenanceKcal = activeProfile ? calculateTargets({ ...activeProfile, goal: "maintien" }).kcal : 0;
   const adaptiveTdee = adaptiveTDEE(state.logs, state.weights);
   const tdeeHist = tdeeHistory(state.logs, state.weights);
+  const effortFuel = effortFueling({ durationMin: effortMin, intensity: effortIntensity, weightKg: activeProfile?.weightKg || 70, heat: effortHeat });
   // Calories conseillées pour tenir le rythme de l'objectif (base = TDEE réel si fiable, sinon maintien théorique).
   const goalEatKcal = weightGoal && weightGoal.requiredPerWeek != null
     ? Math.round(((adaptiveTdee.reliable ? adaptiveTdee.tdee : maintenanceKcal) + (weightGoal.requiredPerWeek * 7700) / 7) / 10) * 10
@@ -525,6 +530,15 @@ export default function MacroTrackerApp() {
     setState(s => ({ ...s, profiles: s.profiles.map(p => p.id === s.activeProfileId ? { ...p, customKcal: kcal } : p) }));
     showToast(`${tr("w.appliedPre")}${kcal} ${tr("w.perDay")}`);
   }
+  function logEffortFuel(carbsG: number, fluidMl: number) {
+    const food = findFoodAny("fr_ravito_effort");
+    if (food && carbsG > 0) {
+      const grams = Math.round(carbsG); // 100 g de produit = 100 g de glucides
+      setState(s => ({ ...s, logs: [...s.logs, { id: uid("log"), foodId: food.id, qty: grams, displayQty: grams, displayUnit: "g", meal: "Collation", date }] }));
+    }
+    if (fluidMl > 0) addWater(Math.round(fluidMl));
+    showToast(tr("eff.added"));
+  }
   function addPantry(foodId: string, q: number) {
     const food = foodId ? findFoodAny(foodId) : undefined;
     if (!food) { showToast("Choisis un aliment valide."); return; }
@@ -650,7 +664,7 @@ export default function MacroTrackerApp() {
         <span className="cloud-mini">{session?.user ? `Cloud connecté · ${autoSync ? "auto-save ON" : "auto-save OFF"}` : supabase ? "Cloud prêt · non connecté" : "Cloud non configuré"}</span>
       </div>
     </header>
-    <nav className="tabs">{(["dashboard","profil","journal","catalogue","recettes","programme","courses","placard","poids","progres","sauvegarde"] as Tab[]).map(t => <button key={t} className={`tab ${tab===t?"active":""}`} onClick={()=>setTab(t)}>{tr("tab."+t)}</button>)}<button className="theme-toggle" onClick={toggleTheme} aria-label="Basculer le thème clair/sombre">{theme === "dark" ? tr("theme.light") : tr("theme.dark")}</button></nav>
+    <nav className="tabs">{(["dashboard","profil","journal","catalogue","recettes","programme","courses","placard","poids","effort","progres","sauvegarde"] as Tab[]).map(t => <button key={t} className={`tab ${tab===t?"active":""}`} onClick={()=>setTab(t)}>{tr("tab."+t)}</button>)}<button className="theme-toggle" onClick={toggleTheme} aria-label="Basculer le thème clair/sombre">{theme === "dark" ? tr("theme.light") : tr("theme.dark")}</button></nav>
 
     {tab === "dashboard" && <section className="grid">
       {!activeProfile && <div className="card span-12 onboarding-card"><h2>{tr("onboarding.welcome")}</h2><p className="muted">{tr("onboarding.text")}</p><div className="row" style={{marginTop:8}}><button className="btn" onClick={()=>setTab("profil")}>{tr("onboarding.createProfile")}</button><button className="btn secondary" onClick={()=>setSnapOpen(true)}>{tr("onboarding.trySnap")}</button></div></div>}
@@ -698,6 +712,38 @@ export default function MacroTrackerApp() {
 
     {tab === "poids" && <section className="grid"><div className="card span-4"><h2>{tr("w.fastingWeigh")}</h2><label>{tr("w.morningWeight")}</label><input type="text" inputMode="decimal" placeholder="ex. 70,90" value={weightInput} onChange={e=>setWeightInput(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'){const w=frNum(weightInput,0); if(w>0){addWeight(w); setWeightInput("");}}}}/><button className="btn" style={{marginTop:8}} disabled={frNum(weightInput,0)<=0} onClick={()=>{const w=frNum(weightInput,0); if(w>0){addWeight(w); setWeightInput("");}}}>{tr("w.addWeigh")}</button></div><div className="card span-8"><h2>{tr("w.tracking")}</h2><p>{tr("w.avg7")}<strong>{average7(state.weights) ?? "—"} kg</strong></p>{bmi ? <p>{tr("w.imc")}<strong>{bmi.toFixed(1)}</strong> <span className={`tag ${bmiCategory(bmi).tone}`}>{bmiCategory(bmi).label}</span> <button type="button" className="info-link" onClick={()=>setBmiInfoOpen(true)}>{tr("w.imcInfo")}</button></p> : <p className="muted">{tr("w.imcHint")}</p>}<p className="notice">{activeProfile ? weightTrendRecommendation(activeProfile, state.weights) : tr("w.createProfileReco")}</p><WeightChart weights={state.weights} targetWeightKg={activeProfile?.targetWeightKg} targetDate={activeProfile?.targetDate} trendPerWeek={weightTrendPerWeek(state.weights)}/>{(activeProfile?.targetWeightKg || weightTrendPerWeek(state.weights) != null) && <p className="form-help">{tr("w.projection")}</p>}<div className="list">{state.weights.slice(-10).reverse().map(w=><div className="item" key={w.id}>{w.date} · {w.weightKg} kg · <span className="muted">{w.note}</span></div>)}</div></div><div className="card span-12"><h2>{tr("w.goalTitle")}</h2>{!weightGoal ? <p className="muted">{tr("w.goalNoTarget")}</p> : weightGoal.reached ? <p className="notice"><strong>{tr("w.goalReached")}</strong></p> : <><p>{tr("w.goalTargetLabel")} : <strong>{weightGoal.target} kg</strong>{activeProfile?.targetDate ? <>{tr("w.goalBy")}<strong>{new Date(activeProfile.targetDate+"T12:00:00").toLocaleDateString(lang==="es"?"es-ES":"fr-FR")}</strong></> : null} · {tr("w.goalCurrent")} {weightGoal.cur} kg ({weightGoal.diff > 0 ? "+" : ""}{weightGoal.diff} kg)</p>{weightGoal.daysLeft != null && weightGoal.daysLeft <= 0 && <p className="bad-text">{tr("w.goalPastDate")}</p>}{weightGoal.requiredPerWeek != null && <p>{tr("w.goalNeedPace")} : <strong>{weightGoal.requiredPerWeek > 0 ? "+" : ""}{weightGoal.requiredPerWeek} {tr("w.perWeek")}</strong> ({weightGoal.daysLeft} {tr("w.goalDaysLeft")})</p>}<p className="notice">{tr("w.goalSafe")} {weightGoal.paceOk === false ? tr("w.goalTooFast") : weightGoal.paceOk === true ? tr("w.goalRealistic") : ""}</p>{goalEatKcal != null && <p><strong>{tr("w.goalEat")} {goalEatKcal} {tr("w.perDay")}</strong></p>}{goalEatKcal != null && <button className="btn secondary" style={{marginTop:2}} onClick={()=>applyGoalCalories(goalEatKcal)}>{tr("w.applyGoal")}</button>}{weightGoal.trend == null ? <p className="form-help">{tr("w.needWeighs")}</p> : weightGoal.movingToward === true && weightGoal.etaDate ? <p className="muted">{tr("w.goalTrendReachPre")}<strong>{weightGoal.etaDate}</strong>.</p> : weightGoal.movingToward === false ? <p className="muted">{tr("w.goalTrendAway")}</p> : <p className="muted">{tr("w.goalTrendFlat")}</p>}</>}</div><div className="card span-12"><h2>{tr("tdee.title")}</h2>{!adaptiveTdee.reliable ? <p className="muted">{tr("tdee.needData")} ({adaptiveTdee.daysLogged}/14)</p> : <><p className="macro-info-kcal" style={{color:"var(--primary)"}}>{adaptiveTdee.tdee} {tr("tdee.perDay")}</p><p className="muted">{tr("tdee.theoretical")} : {maintenanceKcal} kcal · {tr("tdee.basedOn")} {adaptiveTdee.daysLogged} {tr("tdee.days")}</p><p className="notice">{adaptiveTdee.tdee - maintenanceKcal > 120 ? tr("tdee.above") : adaptiveTdee.tdee - maintenanceKcal < -120 ? tr("tdee.below") : tr("tdee.close")}</p>{tdeeHist.length >= 2 && <><p className="muted" style={{marginTop:6}}>{tr("tdee.history")}</p><TdeeSparkline points={tdeeHist}/><div className="row" style={{justifyContent:"space-between",fontSize:12,opacity:0.7}}><span>{tdeeHist[0].label} · {tdeeHist[0].tdee}</span><span>{tdeeHist[tdeeHist.length-1].label} · {tdeeHist[tdeeHist.length-1].tdee}</span></div></>}<p className="form-help">{tr("tdee.caveat")}</p></>}</div></section>}
 
+    {tab === "effort" && <section className="grid">
+      <div className="card span-12"><h2>🏃 {tr("eff.title")}</h2><p className="muted">{tr("eff.desc")}</p>
+        <div className="grid" style={{marginTop:8}}>
+          <div className="span-3"><label>{tr("eff.sport")}</label><select value={effortSport} onChange={e=>setEffortSport(e.target.value)}><option value="run">{tr("eff.sportRun")}</option><option value="bike">{tr("eff.sportBike")}</option><option value="other">{tr("eff.sportOther")}</option></select></div>
+          <div className="span-3"><label>{tr("eff.duration")}</label><input type="number" min={0} step={15} value={effortMin} onChange={e=>setEffortMin(Math.max(0, Math.round(Number(e.target.value)||0)))}/></div>
+          <div className="span-3"><label>{tr("eff.intensity")}</label><select value={effortIntensity} onChange={e=>setEffortIntensity(e.target.value as EffortIntensity)}><option value="facile">{tr("eff.intFacile")}</option><option value="modere">{tr("eff.intModere")}</option><option value="intense">{tr("eff.intIntense")}</option></select></div>
+          <div className="span-3"><label>{tr("eff.heat")}</label><div className="toggle-line" style={{margin:0}}><input type="checkbox" checked={effortHeat} onChange={e=>setEffortHeat(e.target.checked)}/><span>☀️ {tr("eff.heat")}</span></div></div>
+        </div>
+      </div>
+      <div className="card span-8"><h2>{tr("eff.during")} · {effortFuel.hours} h</h2>
+        {!effortFuel.needsFuel ? <p className="notice">{tr("eff.noFuel")}</p> : <>
+          <div className="target-panel" style={{gridTemplateColumns:"repeat(3,minmax(0,1fr))"}}>
+            <div><span>{tr("eff.carbs")}</span><strong>{effortFuel.carbsPerHour}</strong><span>{tr("eff.gPerH")} · {effortFuel.carbsTotal} {tr("eff.total") || "total"}</span></div>
+            <div><span>{tr("eff.water")}</span><strong>{effortFuel.fluidPerHour}</strong><span>{tr("eff.mlPerH")} · {effortFuel.fluidTotal}</span></div>
+            <div><span>{tr("eff.sodium")}</span><strong>{effortFuel.sodiumPerHour}</strong><span>{tr("eff.mgPerH")} · {effortFuel.sodiumTotal}</span></div>
+          </div>
+          <p className="muted">{effortFuel.carbType === "mix" ? tr("eff.carbTypeMix") : tr("eff.carbTypeSimple")}</p>
+          <p className="notice">⏱️ {tr("eff.tip")}</p>
+          <button className="btn" style={{marginTop:8}} onClick={()=>logEffortFuel(effortFuel.carbsTotal, effortFuel.fluidTotal)}>{tr("eff.addJournal")}</button>
+        </>}
+      </div>
+      <div className="card span-4">
+        {effortFuel.preMealCarbs != null && <><h2>{tr("eff.before")}</h2><p>{tr("eff.beforeCarbs")} <strong>{effortFuel.preMealCarbs} {tr("eff.gCarbs")}</strong></p></>}
+        <h2 style={{marginTop: effortFuel.preMealCarbs != null ? 12 : 0}}>{tr("eff.after")}</h2>
+        <p>{tr("eff.afterLine")}</p>
+        <p><strong>{effortFuel.postCarbs} {tr("eff.gCarbs")}</strong> · <strong>{effortFuel.postProtein} {tr("eff.gProtein")}</strong></p>
+        <p className="form-help">{tr("eff.recovery")}</p>
+        <p className="form-help" style={{opacity:0.7}}>{tr("eff.recoverySrc")}</p>
+      </div>
+      <div className="card span-12"><p className="form-help">{tr("eff.vitamins")}</p><p className="form-help">{tr("eff.disclaimer")}</p></div>
+    </section>}
+
     {tab === "progres" && <section className="grid">
       <div className="card span-12">
         <div className="space"><h2>{tr("prog.title")}</h2>{streak > 0 && <span className="streak-badge">🔥 {streak} {streak > 1 ? tr("prog.streakDays") : tr("prog.streakDay")} {tr("prog.streakSuffix")}</span>}</div>
@@ -741,7 +787,7 @@ export default function MacroTrackerApp() {
     {menuOpen && <div className="sheet-overlay" onClick={()=>setMenuOpen(false)}>
       <div className="sheet" onClick={e=>e.stopPropagation()}>
         <div className="sheet-head"><strong>{tr("menu.title")}</strong><button className="snap-close" onClick={()=>setMenuOpen(false)} aria-label="Fermer">✕</button></div>
-        <div className="sheet-group"><span className="sheet-group-title">{tr("menu.groupTracking")}</span><button className="sheet-item" onClick={()=>{setTab("progres");setMenuOpen(false);}}>{tr("menu.progress")}</button><button className="sheet-item" onClick={()=>{setTab("poids");setMenuOpen(false);}}>{tr("menu.weight")}</button></div>
+        <div className="sheet-group"><span className="sheet-group-title">{tr("menu.groupTracking")}</span><button className="sheet-item" onClick={()=>{setTab("progres");setMenuOpen(false);}}>{tr("menu.progress")}</button><button className="sheet-item" onClick={()=>{setTab("poids");setMenuOpen(false);}}>{tr("menu.weight")}</button><button className="sheet-item" onClick={()=>{setTab("effort");setMenuOpen(false);}}>{tr("menu.effort")}</button></div>
         <div className="sheet-group"><span className="sheet-group-title">{tr("menu.groupKitchen")}</span><button className="sheet-item" onClick={()=>{setTab("recettes");setMenuOpen(false);}}>{tr("menu.recipes")}</button><button className="sheet-item" onClick={()=>{setTab("programme");setMenuOpen(false);}}>{tr("menu.program")}</button><button className="sheet-item" onClick={()=>{setTab("courses");setMenuOpen(false);}}>{tr("menu.shopping")}</button><button className="sheet-item" onClick={()=>{setTab("placard");setMenuOpen(false);}}>{tr("menu.pantry")}</button></div>
         <div className="sheet-group"><span className="sheet-group-title">{tr("menu.groupAccount")}</span><button className="sheet-item" onClick={()=>{setTab("profil");setMenuOpen(false);}}>{tr("menu.profile")}</button><button className="sheet-item" onClick={()=>{setTab("sauvegarde");setMenuOpen(false);}}>{tr("menu.account")}</button></div>
         <div className="sheet-group"><span className="sheet-group-title">{tr("menu.groupAppearance")}</span><button className="sheet-item" onClick={toggleTheme}>{theme==="dark"?tr("theme.lightFull"):tr("theme.darkFull")}</button></div>

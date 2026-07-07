@@ -102,6 +102,72 @@ export function tdeeHistory(logs: MealLogItem[], weights: WeightLog[], weeks = 6
   return out;
 }
 
+// ---------------------------------------------------------------------------
+// Ravitaillement d'effort (endurance) : glucides, hydratation et sodium à viser
+// PENDANT une sortie longue (course, vélo...) pour tenir le seuil de performance.
+// Bases : ISSN / ACSM / Jeukendrup (glucides/h selon la durée), 400-800 mL/h d'eau,
+// 300-1000 mg/h de sodium selon la chaleur et la sudation.
+// Remarque : en aigu, ce sont les glucides + l'eau + le sodium qui portent la
+// performance ; les vitamines relèvent surtout de la récupération et du quotidien.
+// ---------------------------------------------------------------------------
+export type EffortIntensity = "facile" | "modere" | "intense";
+export type EffortFuel = {
+  hours: number;
+  needsFuel: boolean;
+  carbsPerHour: number; carbsTotal: number; carbType: "none" | "simple" | "mix";
+  fluidPerHour: number; fluidTotal: number;
+  sodiumPerHour: number; sodiumTotal: number;
+  intervalMin: number;
+  preMealCarbs: number | null;
+  postCarbs: number; postProtein: number;
+};
+export function effortFueling(opts: { durationMin: number; intensity: EffortIntensity; weightKg: number; heat?: boolean }): EffortFuel {
+  const durationMin = Math.max(0, opts.durationMin || 0);
+  const hours = durationMin / 60;
+  const w = opts.weightKg && opts.weightKg > 0 ? opts.weightKg : 70;
+
+  // Glucides par heure selon la durée (glucose simple puis mélange glucose-fructose au-delà de 2h30).
+  let carbsPerHour = 0;
+  let carbType: EffortFuel["carbType"] = "none";
+  if (durationMin < 60) { carbsPerHour = 0; carbType = "none"; }
+  else if (durationMin < 90) { carbsPerHour = 30; carbType = "simple"; }
+  else if (durationMin < 150) { carbsPerHour = 60; carbType = "simple"; }
+  else { carbsPerHour = 90; carbType = "mix"; }
+  if (opts.intensity === "intense" && carbsPerHour > 0 && carbsPerHour < 90) carbsPerHour += 10;
+  const needsFuel = carbsPerHour > 0;
+  const carbsTotal = Math.round(carbsPerHour * hours);
+
+  // Hydratation : 400-800 mL/h, majorée à l'effort intense et à la chaleur.
+  let fluidPerHour = 500;
+  if (opts.intensity === "intense") fluidPerHour += 100;
+  if (opts.heat) fluidPerHour += 200;
+  fluidPerHour = Math.min(800, fluidPerHour);
+  const fluidTotal = Math.round(fluidPerHour * hours);
+
+  // Sodium : 400 mg/h de base, jusqu'à ~1000 mg/h par forte chaleur / grosse sudation.
+  let sodiumPerHour = 400;
+  if (opts.intensity === "intense") sodiumPerHour += 100;
+  if (opts.heat) sodiumPerHour += 300;
+  sodiumPerHour = Math.min(1000, sodiumPerHour);
+  const sodiumTotal = Math.round(sodiumPerHour * hours);
+
+  // Avant : repas pré-effort riche en glucides pour les sorties > 90 min (~2 g/kg, 1 à 3 h avant).
+  const preMealCarbs = durationMin >= 90 ? Math.round(w * 2) : null;
+  // Après : fenêtre de récupération, ~1 g/kg de glucides et ~0,3 g/kg de protéines.
+  const postCarbs = Math.round(w * 1);
+  const postProtein = Math.round(w * 0.3);
+
+  return {
+    hours: Math.round(hours * 10) / 10,
+    needsFuel,
+    carbsPerHour, carbsTotal, carbType,
+    fluidPerHour, fluidTotal,
+    sodiumPerHour, sodiumTotal,
+    intervalMin: 20,
+    preMealCarbs, postCarbs, postProtein,
+  };
+}
+
 // Tendance de poids en kg/semaine : moyenne des 7 dernières pesées moins la moyenne des 7 précédentes.
 export function weightTrendPerWeek(weights: WeightLog[]): number | null {
   const sorted = [...weights].sort((a, b) => a.date.localeCompare(b.date));

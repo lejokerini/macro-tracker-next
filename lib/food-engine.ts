@@ -392,6 +392,9 @@ const frCommonSeeds: FrSeed[] = [
   { id:"fr_doritos", name:"Doritos", cat:"Plaisirs, Surgelés & Divers", kcal:500, p:7, c:60, f:26, fib:4, state:"standard", brand:"Doritos", icon:"🥔", diets:D_VEGE, allergens:["lait","gluten"], nutriScore:"D", novaGroup:4, aliases:["doritos","tortilla chips","nachos"] },
   { id:"fr_curly", name:"Curly cacahuète", cat:"Plaisirs, Surgelés & Divers", kcal:530, p:10, c:52, f:30, fib:3, state:"standard", brand:"Vico", icon:"🥜", diets:D_VEGE, allergens:["fruits_a_coque","gluten"], nutriScore:"D", novaGroup:4, aliases:["curly","curly cacahuete","souffle cacahuete"] },
   { id:"fr_monster_munch", name:"Monster Munch", cat:"Plaisirs, Surgelés & Divers", kcal:490, p:5, c:60, f:25, fib:3, state:"standard", brand:"Monster Munch", icon:"🥔", diets:D_VEGE, allergens:["gluten","lait"], nutriScore:"D", novaGroup:4, aliases:["monster munch","souffle gout"] },
+  // Ravitaillement d'effort : 100 g de produit = 100 g de glucides (gel, boisson iso, pâte de fruits).
+  // Sert de raccourci pour journaliser les glucides d'une sortie longue depuis l'onglet Effort.
+  { id:"fr_ravito_effort", name:"Glucides d'effort (gel / boisson iso / pâte de fruits)", cat:"Plaisirs, Surgelés & Divers", kcal:400, p:0, c:100, f:0, fib:0, state:"standard", icon:"⚡", diets:D_VEGAN, allergens:[], reliability:"estime", aliases:["glucides effort","ravitaillement","ravito","gel energetique","boisson isotonique","glucides sport"], sourceRef:"Repère : 100 g comptés = 100 g de glucides. Ajuste selon ton gel / ta boisson réels." },
 ];
 
 function makeFrFood(s: FrSeed): Food {
