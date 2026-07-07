@@ -64,6 +64,14 @@ export function roundedMacros(m: ReturnType<typeof sumIngredients>) { return { k
 export function recipeMacros(recipe: Recipe) { return roundedMacros(sumIngredients(recipe.ingredients)); }
 export function logMacros(logs: MealLogItem[], date: string) { return roundedMacros(sumIngredients(logs.filter(l => l.date === date).map(l => ({ foodId: l.foodId, qty: l.qty })))); }
 export function average7(weights: WeightLog[]) { const sorted=[...weights].sort((a,b)=>a.date.localeCompare(b.date)); const last=sorted.slice(-7); if(!last.length) return null; return +(last.reduce((s,w)=>s+w.weightKg,0)/last.length).toFixed(2); }
+// Tendance de poids en kg/semaine : moyenne des 7 dernières pesées moins la moyenne des 7 précédentes.
+export function weightTrendPerWeek(weights: WeightLog[]): number | null {
+  const sorted = [...weights].sort((a, b) => a.date.localeCompare(b.date));
+  if (sorted.length < 14) return null;
+  const prev = sorted.slice(-14, -7), recent = sorted.slice(-7);
+  const avg = (x: WeightLog[]) => x.reduce((s, w) => s + w.weightKg, 0) / x.length;
+  return Math.round((avg(recent) - avg(prev)) * 100) / 100;
+}
 export function weightTrendRecommendation(profile: Profile, weights: WeightLog[]) {
   const sorted=[...weights].sort((a,b)=>a.date.localeCompare(b.date));
   if(sorted.length < 14) return "Ajoute au moins 14 pesées à jeun pour obtenir une recommandation fiable.";
