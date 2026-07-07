@@ -66,6 +66,8 @@ const fr: Dict = {
   "journal.addToJournal": "Ajouter au journal",
   "journal.diaryOf": "Journal du",
   "journal.remove": "Retirer",
+  "journal.addedTo": "Ajouté au journal : ",
+  "journal.addedN": "aliment(s) ajouté(s) au journal.",
   // Repas (l'étiquette est traduite, la valeur interne reste en français)
   "meal.Petit-déjeuner": "Petit-déjeuner",
   "meal.Déjeuner": "Déjeuner",
@@ -372,6 +374,8 @@ const es: Dict = {
   "journal.addToJournal": "Añadir al diario",
   "journal.diaryOf": "Diario del",
   "journal.remove": "Quitar",
+  "journal.addedTo": "Añadido al diario: ",
+  "journal.addedN": "alimento(s) añadido(s) al diario.",
   "meal.Petit-déjeuner": "Desayuno",
   "meal.Déjeuner": "Almuerzo",
   "meal.Dîner": "Cena",

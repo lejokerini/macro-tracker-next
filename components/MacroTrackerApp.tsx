@@ -407,6 +407,7 @@ export default function MacroTrackerApp() {
     const baseQty = qtyToGrams(food, qty, journalUnit);
     rememberOpenFoodFactsFood(food);
     setState(s => ({ ...s, offFoods: food.source === "openfoodfacts" && !(s.offFoods || []).some(f => f.id === food.id) ? [...(s.offFoods || []), food] : (s.offFoods || []), logs: [...s.logs, { id: uid("log"), foodId: selectedFood, qty: baseQty, displayQty: qty, displayUnit: journalUnit, meal: selectedMeal, date }] }));
+    showToast(tr("journal.addedTo") + food.name);
   }
   function addCustomRecipe(recipe: Recipe) {
     setState(s => ({ ...s, recipes: [recipe, ...s.recipes] }));
@@ -435,6 +436,7 @@ export default function MacroTrackerApp() {
     });
     setState(s => ({ ...s, offFoods: [...(s.offFoods || []), ...newFoods], logs: [...s.logs, ...newLogs] }));
     setTab("journal");
+    showToast(`${items.length} ${tr("journal.addedN")}`);
   }
   function addBarcodeFood(food: Food, baseGrams: number, displayQty: number, displayUnit: "piece" | "g" | "cl", mealForItem: MealType) {
     setState(s => ({
@@ -443,6 +445,7 @@ export default function MacroTrackerApp() {
       logs: [...s.logs, { id: uid("log"), foodId: food.id, qty: baseGrams, displayQty, displayUnit, meal: mealForItem, date }],
     }));
     setTab("journal");
+    showToast(tr("journal.addedTo") + food.name);
   }
   function quickAddFood(food: Food) {
     const q = isPieceInput(food) ? 1 : 100;
@@ -452,6 +455,7 @@ export default function MacroTrackerApp() {
       offFoods: (food.source === "openfoodfacts" || food.source === "estimated") && !(s.offFoods || []).some(f => f.id === food.id) ? [...(s.offFoods || []), food] : (s.offFoods || []),
       logs: [...s.logs, { id: uid("log"), foodId: food.id, qty: baseQty, displayQty: q, displayUnit: isPieceInput(food) ? "piece" : food.unit, meal: selectedMeal, date }],
     }));
+    showToast(tr("journal.addedTo") + food.name);
   }
   function toggleFavorite(food: Food) {
     setState(s => {
