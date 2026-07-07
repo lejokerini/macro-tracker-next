@@ -67,14 +67,15 @@ export function average7(weights: WeightLog[]) { const sorted=[...weights].sort(
 // TDEE réel (calibré) : dépense estimée à partir des calories réellement loggées et de
 // l'évolution du poids sur la période. Bilan énergétique : 1 kg ≈ 7700 kcal.
 // TDEE ≈ apport moyen − (variation de poids en kcal / nombre de jours).
-export function adaptiveTDEE(logs: MealLogItem[], weights: WeightLog[], periodDays = 21) {
+export function adaptiveTDEE(logs: MealLogItem[], weights: WeightLog[], periodDays = 21, asOf: Date = new Date()) {
   const localISO = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  const asOfISO = localISO(asOf);
   const dayList: string[] = [];
-  for (let i = 0; i < periodDays; i++) { const d = new Date(); d.setDate(d.getDate() - i); dayList.push(localISO(d)); }
+  for (let i = 0; i < periodDays; i++) { const d = new Date(asOf); d.setDate(d.getDate() - i); dayList.push(localISO(d)); }
   const loggedKcal = dayList.map((d) => logMacros(logs, d).kcal).filter((k) => k > 0);
   const daysLogged = loggedKcal.length;
-  const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - periodDays);
-  const inPeriod = weights.filter((w) => w.date >= localISO(cutoff)).sort((a, b) => a.date.localeCompare(b.date));
+  const cutoff = new Date(asOf); cutoff.setDate(cutoff.getDate() - periodDays);
+  const inPeriod = weights.filter((w) => w.date >= localISO(cutoff) && w.date <= asOfISO).sort((a, b) => a.date.localeCompare(b.date));
   const fail = { reliable: false as const, daysLogged, weighs: inPeriod.length, tdee: null, avgIntake: null, weightChange: null, spanDays: null };
   if (daysLogged < 14 || inPeriod.length < 4) return fail;
   const avg = (arr: number[]) => arr.reduce((s, x) => s + x, 0) / arr.length;
@@ -87,6 +88,18 @@ export function adaptiveTDEE(logs: MealLogItem[], weights: WeightLog[], periodDa
   const dailyBalance = (weightChange * 7700) / spanDays;
   const tdee = Math.round((avgIntake - dailyBalance) / 10) * 10;
   return { reliable: true as const, daysLogged, weighs: inPeriod.length, tdee, avgIntake: Math.round(avgIntake), weightChange: Math.round(weightChange * 100) / 100, spanDays };
+}
+
+// Historique du TDEE réel : une fenêtre glissante de `periodDays` recalculée chaque semaine
+// sur les `weeks` dernières semaines. Retourne uniquement les points fiables.
+export function tdeeHistory(logs: MealLogItem[], weights: WeightLog[], weeks = 6, periodDays = 21): { label: string; tdee: number }[] {
+  const out: { label: string; tdee: number }[] = [];
+  for (let w = weeks - 1; w >= 0; w--) {
+    const asOf = new Date(); asOf.setDate(asOf.getDate() - w * 7);
+    const r = adaptiveTDEE(logs, weights, periodDays, asOf);
+    if (r.reliable) out.push({ label: `${String(asOf.getDate()).padStart(2, "0")}/${String(asOf.getMonth() + 1).padStart(2, "0")}`, tdee: r.tdee });
+  }
+  return out;
 }
 
 // Tendance de poids en kg/semaine : moyenne des 7 dernières pesées moins la moyenne des 7 précédentes.

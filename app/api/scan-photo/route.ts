@@ -25,16 +25,27 @@ Règles :
 - Si rien n'est identifiable, renvoie {"items":[]}.`;
 }
 
+// Points communs aux analyses photo et texte : ne pas oublier les calories cachées.
+const HIDDEN_CALORIES = `Repère AUSSI les éléments souvent oubliés mais riches en calories, et ajoute-les comme aliments distincts même s'ils sont partiellement visibles ou seulement probables :
+- sauces et vinaigrettes (tomate, crème, béchamel, soja, ketchup, mayonnaise, moutarde, pesto, curry, barbecue...) ;
+- matières grasses de cuisson : huile, beurre, margarine, crème ;
+- ajouts : fromage râpé, lardons, graines, noix, croûtons, sucre, sirop, miel.
+Déduis le mode de cuisson : un aliment frit, pané ou poêlé contient de l'huile ajoutée (compte environ 5 à 15 g d'huile selon la portion) ; un plat en sauce contient de la matière grasse.
+Si une sauce nappe le plat sans être identifiable, ajoute une ligne « Sauce » avec une estimation prudente.`;
+
 function buildPrompt(opts: { hasImage: boolean; text?: string; hint?: string; lang: string }) {
   const rules = formatRules(opts.lang);
   if (!opts.hasImage && opts.text) {
     return `Tu es un expert en nutrition. Voici la description d'un repas écrite par l'utilisateur : « ${opts.text} ».
 Identifie chaque aliment, estime les portions en grammes et les valeurs nutritionnelles.
+${HIDDEN_CALORIES}
 ${rules}`;
   }
   let p = `Tu es un expert en nutrition. Analyse la photo d'un repas ou d'un aliment.
 Identifie chaque aliment distinct visible (par exemple sur une assiette : féculent, protéine, légume séparés).
-Pour CHAQUE aliment, estime la portion en grammes telle qu'elle apparaît sur la photo, puis les valeurs nutritionnelles.`;
+Pour CHAQUE aliment, estime la portion en grammes telle qu'elle apparaît sur la photo, puis les valeurs nutritionnelles.
+${HIDDEN_CALORIES}
+Pour un plat composé (burger, pizza, lasagnes, sandwich, wrap, plat en sauce, salade composée), soit tu détailles les composants principaux, soit tu donnes une seule ligne avec des totaux réalistes qui INCLUENT la sauce et les matières grasses. Ne sous-estime pas : mieux vaut une estimation légèrement haute qu'un repas dont il manque la moitié des calories.`;
   if (opts.hint) p += `\nCorrection importante donnée par l'utilisateur, à respecter en priorité : « ${opts.hint} ».`;
   if (opts.text) p += `\nIndication de l'utilisateur sur le contenu : « ${opts.text} ».`;
   return `${p}\n${rules}`;

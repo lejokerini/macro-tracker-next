@@ -257,6 +257,7 @@ const fr: Dict = {
   "tdee.below": "Ta dépense réelle est plus basse que l'estimation.",
   "tdee.close": "Ta dépense réelle correspond bien à l'estimation.",
   "tdee.caveat": "Calculé à partir de tes calories loggées et de ton poids (1 kg ≈ 7700 kcal). Fiable seulement si ton journal est complet et honnête ; plus tu accumules de données, plus c'est précis.",
+  "tdee.history": "Évolution de ta dépense réelle (fenêtre glissante, semaine par semaine) :",
   // Progrès
   "prog.title": "📈 Progrès",
   "prog.streakDays": "jours",
@@ -591,6 +592,7 @@ const es: Dict = {
   "tdee.below": "Tu gasto real es menor que la estimación.",
   "tdee.close": "Tu gasto real coincide con la estimación.",
   "tdee.caveat": "Calculado a partir de tus calorías registradas y tu peso (1 kg ≈ 7700 kcal). Fiable solo si tu diario está completo y es honesto; cuantos más datos, más preciso.",
+  "tdee.history": "Evolución de tu gasto real (ventana móvil, semana a semana):",
   "prog.title": "📈 Progreso",
   "prog.streakDays": "días",
   "prog.streakDay": "día",
