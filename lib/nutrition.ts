@@ -64,6 +64,31 @@ export function roundedMacros(m: ReturnType<typeof sumIngredients>) { return { k
 export function recipeMacros(recipe: Recipe) { return roundedMacros(sumIngredients(recipe.ingredients)); }
 export function logMacros(logs: MealLogItem[], date: string) { return roundedMacros(sumIngredients(logs.filter(l => l.date === date).map(l => ({ foodId: l.foodId, qty: l.qty })))); }
 export function average7(weights: WeightLog[]) { const sorted=[...weights].sort((a,b)=>a.date.localeCompare(b.date)); const last=sorted.slice(-7); if(!last.length) return null; return +(last.reduce((s,w)=>s+w.weightKg,0)/last.length).toFixed(2); }
+// TDEE réel (calibré) : dépense estimée à partir des calories réellement loggées et de
+// l'évolution du poids sur la période. Bilan énergétique : 1 kg ≈ 7700 kcal.
+// TDEE ≈ apport moyen − (variation de poids en kcal / nombre de jours).
+export function adaptiveTDEE(logs: MealLogItem[], weights: WeightLog[], periodDays = 21) {
+  const localISO = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  const dayList: string[] = [];
+  for (let i = 0; i < periodDays; i++) { const d = new Date(); d.setDate(d.getDate() - i); dayList.push(localISO(d)); }
+  const loggedKcal = dayList.map((d) => logMacros(logs, d).kcal).filter((k) => k > 0);
+  const daysLogged = loggedKcal.length;
+  const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - periodDays);
+  const inPeriod = weights.filter((w) => w.date >= localISO(cutoff)).sort((a, b) => a.date.localeCompare(b.date));
+  const fail = { reliable: false as const, daysLogged, weighs: inPeriod.length, tdee: null, avgIntake: null, weightChange: null, spanDays: null };
+  if (daysLogged < 14 || inPeriod.length < 4) return fail;
+  const avg = (arr: number[]) => arr.reduce((s, x) => s + x, 0) / arr.length;
+  const spanDays = Math.max(1, Math.round((new Date(inPeriod[inPeriod.length - 1].date).getTime() - new Date(inPeriod[0].date).getTime()) / 86400000));
+  if (spanDays < 10) return { ...fail, spanDays };
+  const avgIntake = avg(loggedKcal);
+  const firstAvg = avg(inPeriod.slice(0, 3).map((w) => w.weightKg));
+  const lastAvg = avg(inPeriod.slice(-3).map((w) => w.weightKg));
+  const weightChange = lastAvg - firstAvg;
+  const dailyBalance = (weightChange * 7700) / spanDays;
+  const tdee = Math.round((avgIntake - dailyBalance) / 10) * 10;
+  return { reliable: true as const, daysLogged, weighs: inPeriod.length, tdee, avgIntake: Math.round(avgIntake), weightChange: Math.round(weightChange * 100) / 100, spanDays };
+}
+
 // Tendance de poids en kg/semaine : moyenne des 7 dernières pesées moins la moyenne des 7 précédentes.
 export function weightTrendPerWeek(weights: WeightLog[]): number | null {
   const sorted = [...weights].sort((a, b) => a.date.localeCompare(b.date));
