@@ -193,7 +193,7 @@ export default function SnapModal({
     reader.readAsDataURL(file);
     const compressed = await compressImage(file);
     lastFile.current = compressed;
-    runAnalysis({ file: compressed });
+    runAnalysis({ file: compressed, text: description.trim() || undefined });
   }
 
   function handleText() {
@@ -242,18 +242,17 @@ export default function SnapModal({
         {!preview && !analyzed && (
           <div className="snap-capture-zone">
             <p className="muted">{tr("snap.intro")}</p>
+            <div className="snap-describe">
+              <label>{tr("snap.describeLabel")}</label>
+              <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder={tr("snap.describePlaceholder")} rows={2} />
+              <p className="form-help">{tr("snap.describeHelp")}</p>
+              {speechSupported && <button type="button" className={`btn secondary ${listening ? "mic-on" : ""}`} onClick={toggleDictation}>{listening ? tr("snap.listening") : tr("snap.dictate")}</button>}
+            </div>
             <div className="row" style={{ justifyContent: "center", flexWrap: "wrap" }}>
               <button className="btn" onClick={() => cameraRef.current?.click()}>{tr("snap.takePhoto")}</button>
               <button className="btn secondary" onClick={() => libraryRef.current?.click()}>{tr("snap.import")}</button>
               {onScanBarcode && <button className="btn secondary" onClick={() => { reset(); onScanBarcode(); }}>{tr("snap.barcode")}</button>}
-            </div>
-            <div className="snap-describe">
-              <label>{tr("snap.describeLabel")}</label>
-              <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder={tr("snap.describePlaceholder")} rows={2} />
-              <div className="row">
-                {speechSupported && <button type="button" className={`btn secondary ${listening ? "mic-on" : ""}`} onClick={toggleDictation}>{listening ? tr("snap.listening") : tr("snap.dictate")}</button>}
-                <button className="btn secondary" disabled={description.trim().length < 3} onClick={handleText}>{tr("snap.analyzeDesc")}</button>
-              </div>
+              <button className="btn secondary" disabled={description.trim().length < 3} onClick={handleText}>{tr("snap.analyzeDesc")}</button>
             </div>
           </div>
         )}
