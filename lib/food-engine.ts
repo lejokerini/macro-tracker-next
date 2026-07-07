@@ -366,7 +366,7 @@ const frCommonSeeds: FrSeed[] = [
   { id:"fr_petit_pot_legumes", name:"Petit pot légumes (bébé)", cat:"Fruits & Légumes", kcal:55, p:1.5, c:8, f:1.5, fib:1.5, state:"prepare", icon:"🍼", diets:D_VEGE, allergens:[], nutriScore:"A", reliability:"estime", aliases:["petit pot","petit pot bebe","puree bebe legumes"] },
   { id:"fr_petit_pot_viande", name:"Petit pot légumes-viande (bébé)", cat:"Fruits & Légumes", kcal:75, p:4, c:7, f:3, fib:1.5, state:"prepare", icon:"🍼", diets:D_MEAT, allergens:[], nutriScore:"A", reliability:"estime", aliases:["petit pot legumes viande","petit pot bebe viande","petit pot viande"] },
   { id:"fr_compote_bebe", name:"Compote bébé (sans sucre ajouté)", cat:"Fruits & Légumes", kcal:55, p:0.3, c:13, f:0.1, fib:1.2, state:"prepare", icon:"🍎", diets:D_VEGAN, allergens:[], nutriScore:"A", aliases:["compote bebe","compote sans sucre","gourde bebe"] },
-  { id:"fr_bledine", name:"Céréales bébé (Blédine)", cat:"Céréales & Pain", kcal:400, p:10, c:75, f:4, fib:3, state:"standard", brand:"Blédina", icon:"🍼", diets:D_VEGE, allergens:["gluten","lait"], nutriScore:"B", novaGroup:4, aliases:["bledine","blédine","cereales bebe","bledina"] },
+  { id:"fr_bledine", name:"Céréales bébé (Blédina)", cat:"Céréales & Pain", kcal:400, p:10, c:75, f:4, fib:3, state:"standard", brand:"Blédina", icon:"🍼", diets:D_VEGE, allergens:["gluten","lait"], nutriScore:"B", novaGroup:4, aliases:["bledina","bledine","blédine","cereales bebe"] },
 ];
 
 function makeFrFood(s: FrSeed): Food {
