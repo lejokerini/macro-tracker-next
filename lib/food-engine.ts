@@ -350,6 +350,23 @@ const frCommonSeeds: FrSeed[] = [
   { id:"fr_kiri", name:"Kiri", cat:"Produits Laitiers & Crèmerie", kcal:300, p:7, c:4, f:28, fib:0, servingGrams:18, servingLabel:"portion", state:"standard", brand:"Kiri", icon:"🧀", diets:D_VEGE, allergens:["lait"], nutriScore:"D", aliases:["kiri"] },
   { id:"fr_boursin", name:"Boursin", cat:"Produits Laitiers & Crèmerie", kcal:400, p:6, c:3, f:40, fib:0, state:"standard", brand:"Boursin", icon:"🧀", diets:D_VEGE, allergens:["lait"], nutriScore:"D", aliases:["boursin","fromage ail et fines herbes"] },
   { id:"fr_raclette", name:"Fromage à raclette", cat:"Produits Laitiers & Crèmerie", kcal:357, p:23, c:0.5, f:29, fib:0, state:"standard", icon:"🧀", diets:D_VEGE, allergens:["lait"], nutriScore:"D", aliases:["raclette","fromage a raclette"] },
+  // Végé & légumineuses transformées (par 100 g)
+  { id:"fr_falafel", name:"Falafel", cat:"Plaisirs, Surgelés & Divers", kcal:330, p:13, c:32, f:18, fib:5, state:"cuit", icon:"🧆", diets:D_VEGAN, allergens:["sesame"], nutriScore:"C", aliases:["falafel","falafels"] },
+  { id:"fr_steak_vegetal", name:"Steak végétal", cat:"Viandes, Poissons & Protéines", kcal:180, p:17, c:6, f:9, fib:4, state:"cuit", icon:"🌱", diets:D_VEGAN, allergens:["soja","gluten"], nutriScore:"B", novaGroup:4, aliases:["steak vegetal","steak vegan","steak de soja","galette vegetale"] },
+  { id:"fr_nuggets_vege", name:"Nuggets végétaux", cat:"Viandes, Poissons & Protéines", kcal:220, p:13, c:15, f:12, fib:4, state:"cuit", icon:"🌱", diets:D_VEGAN, allergens:["soja","gluten"], nutriScore:"C", novaGroup:4, aliases:["nuggets vegetaux","nuggets vegan","nuggets veggie"] },
+  { id:"fr_boulettes_vege", name:"Boulettes végétales", cat:"Viandes, Poissons & Protéines", kcal:200, p:16, c:10, f:10, fib:4, state:"cuit", icon:"🌱", diets:D_VEGAN, allergens:["soja"], nutriScore:"B", novaGroup:4, aliases:["boulettes vegetales","boulettes soja","boulettes vegan"] },
+  { id:"fr_tofu_soyeux", name:"Tofu soyeux", cat:"Viandes, Poissons & Protéines", kcal:55, p:5, c:2, f:3, fib:0.5, state:"standard", icon:"🌱", diets:D_VEGAN, allergens:["soja"], nutriScore:"A", aliases:["tofu soyeux","tofu soie"] },
+  { id:"fr_pst", name:"Protéines de soja texturées", cat:"Viandes, Poissons & Protéines", kcal:340, p:52, c:14, f:2, fib:18, state:"standard", icon:"🌱", diets:D_VEGAN, allergens:["soja"], nutriScore:"A", aliases:["proteines de soja texturees","pst","soja texture","protéines de soja"] },
+  { id:"fr_galette_legumes", name:"Galette de légumes", cat:"Plaisirs, Surgelés & Divers", kcal:170, p:4, c:18, f:9, fib:4, state:"cuit", icon:"🥬", diets:D_VEGE, allergens:["gluten"], nutriScore:"B", aliases:["galette de legumes","galette legumes","galette vegetale legumes"] },
+  // Apéritif salé (par 100 g)
+  { id:"fr_tuc", name:"Crackers (Tuc)", cat:"Plaisirs, Surgelés & Divers", kcal:490, p:9, c:63, f:22, fib:3, state:"standard", brand:"Tuc", icon:"🧀", diets:D_VEGE, allergens:["gluten","lait"], nutriScore:"D", novaGroup:4, aliases:["tuc","crackers","biscuit aperitif"] },
+  { id:"fr_gressins", name:"Gressins", cat:"Plaisirs, Surgelés & Divers", kcal:400, p:12, c:72, f:6, fib:3, state:"standard", icon:"🥖", diets:D_VEGAN, allergens:["gluten"], nutriScore:"C", aliases:["gressins","grissini"] },
+  { id:"fr_rillettes", name:"Rillettes", cat:"Viandes, Poissons & Protéines", kcal:480, p:15, c:0.5, f:46, fib:0, state:"standard", icon:"🥓", diets:D_MEAT_PORK, allergens:[], nutriScore:"E", aliases:["rillettes","rillettes de porc"] },
+  // Alimentation bébé (par 100 g)
+  { id:"fr_petit_pot_legumes", name:"Petit pot légumes (bébé)", cat:"Fruits & Légumes", kcal:55, p:1.5, c:8, f:1.5, fib:1.5, state:"prepare", icon:"🍼", diets:D_VEGE, allergens:[], nutriScore:"A", reliability:"estime", aliases:["petit pot","petit pot bebe","puree bebe legumes"] },
+  { id:"fr_petit_pot_viande", name:"Petit pot légumes-viande (bébé)", cat:"Fruits & Légumes", kcal:75, p:4, c:7, f:3, fib:1.5, state:"prepare", icon:"🍼", diets:D_MEAT, allergens:[], nutriScore:"A", reliability:"estime", aliases:["petit pot legumes viande","petit pot bebe viande","petit pot viande"] },
+  { id:"fr_compote_bebe", name:"Compote bébé (sans sucre ajouté)", cat:"Fruits & Légumes", kcal:55, p:0.3, c:13, f:0.1, fib:1.2, state:"prepare", icon:"🍎", diets:D_VEGAN, allergens:[], nutriScore:"A", aliases:["compote bebe","compote sans sucre","gourde bebe"] },
+  { id:"fr_bledine", name:"Céréales bébé (Blédine)", cat:"Céréales & Pain", kcal:400, p:10, c:75, f:4, fib:3, state:"standard", brand:"Blédina", icon:"🍼", diets:D_VEGE, allergens:["gluten","lait"], nutriScore:"B", novaGroup:4, aliases:["bledine","blédine","cereales bebe","bledina"] },
 ];
 
 function makeFrFood(s: FrSeed): Food {
