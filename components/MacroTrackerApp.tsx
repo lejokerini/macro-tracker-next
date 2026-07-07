@@ -740,7 +740,11 @@ export default function MacroTrackerApp() {
         <p><strong>{effortFuel.postCarbs} {tr("eff.gCarbs")}</strong> · <strong>{effortFuel.postProtein} {tr("eff.gProtein")}</strong></p>
         <p className="form-help">{tr("eff.recovery")}</p>
         <p className="form-help" style={{opacity:0.7}}>{tr("eff.recoverySrc")}</p>
+        <p className="form-help" style={{marginTop:6}}><strong>❄️ {tr("eff.coldTitle")}</strong> — {(effortSport === "run" || effortSport === "bike") ? tr("eff.coldEndurance") : tr("eff.coldStrength")}</p>
+        <p className="form-help">{tr("eff.coldWarn")}</p>
+        <p className="form-help" style={{opacity:0.7}}>{tr("eff.coldSrc")}</p>
       </div>
+      <div className="card span-12"><h2>{tr("eff.sleepTitle")}</h2><p>{tr("eff.sleepTarget")}</p><p className="muted">{tr("eff.sleepNutri")}</p><p className="muted">{tr("eff.sleepHydra")}</p><p className="notice">{tr("eff.sleepWarn")}</p><p className="form-help" style={{opacity:0.7}}>{tr("eff.sleepSrc")}</p></div>
       <div className="card span-12"><p className="form-help">{tr("eff.vitamins")}</p><p className="form-help">{tr("eff.disclaimer")}</p></div>
     </section>}
 
