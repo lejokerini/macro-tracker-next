@@ -36,6 +36,26 @@ const PRICE_OVERRIDES: Record<string, number> = {
 function stripEmoji(cat: string) { return cat.replace(/^[^\p{L}\p{N}]+\s*/u, "").trim(); }
 export function normalizeFoodText(s: string) { return s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, ""); }
 
+// Synonymes, abr\u00e9viations et termes r\u00e9gionaux FR : la cl\u00e9 (d\u00e9j\u00e0 normalis\u00e9e) est remplac\u00e9e
+// par le terme canonique avant la recherche, pour retrouver l'aliment m\u00eame si l'on tape autrement.
+const SEARCH_SYNONYMS: Record<string, string> = {
+  "pdt": "pomme de terre", "patate": "pomme de terre", "patates": "pomme de terre",
+  "chocolatine": "pain au chocolat", "pain choc": "pain au chocolat",
+  "coca": "coca-cola", "coca cola": "coca-cola", "coca zero": "coca-cola zero",
+  "yogourt": "yaourt", "yoghourt": "yaourt",
+  "cac": "cacahuete", "cacahuetes": "cacahuete", "cacaouete": "cacahuete",
+  "pdt douce": "patate douce",
+  "filet de poulet": "blanc de poulet", "escalope de poulet": "blanc de poulet",
+  "hach\u00e9": "steak hache", "hache": "steak hache", "vpf": "steak hache",
+  "creme fraiche": "creme fraiche", "cremerie": "creme",
+  "pom pot": "compote", "compotes": "compote",
+  "clementines": "clementine", "mandarines": "mandarine",
+  "steak vegetal": "steak vegetal", "galette vegetale": "steak vegetal",
+  "pate a tartiner": "pate a tartiner", "nutella": "pate a tartiner chocolat noisette",
+  "frites mcdo": "frites", "cheeseburger": "cheeseburger", "hamburger": "hamburger",
+};
+function expandQuery(q: string): string { return SEARCH_SYNONYMS[q] ? normalizeFoodText(SEARCH_SYNONYMS[q]) : q; }
+
 export function inferAllergens(name: string): string[] {
   const n = normalizeFoodText(name); const a = new Set<string>();
   if (/pain|pate|pates|spaghetti|penne|tagliatelles|coquillettes|farfalle|lasagne|semoule|boulgour|ble|farine|biscotte|croissant|brioche|chapelure|crouton|tortilla de ble|seitan|orge|epeautre|pain/.test(n)) a.add("gluten");
@@ -172,6 +192,101 @@ const brandedFoods: Food[] = [
   }
 ];
 
+
+// ---------------------------------------------------------------------------
+// Aliments FR courants : plats, fast-food, boulangerie et produits de marque
+// fréquents, souvent absents de Ciqual (qui décrit des aliments génériques).
+// Valeurs par 100 g (ou 100 ml pour les boissons). Les produits de marque avec
+// code-barres restent vérifiables précisément au scan ; ici c'est un raccourci
+// de recherche. Les plats composés sont des moyennes réalistes, marquées comme
+// telles (fiabilité « estimé »).
+// ---------------------------------------------------------------------------
+const D_MEAT_PORK: DietType[] = ["omnivore", "flexitarien"];
+const D_MEAT: DietType[] = ["omnivore", "flexitarien", "sans_porc"];
+const D_FISH: DietType[] = ["omnivore", "flexitarien", "pescetarien", "sans_porc"];
+const D_VEGE: DietType[] = ["omnivore", "flexitarien", "pescetarien", "vegetarien", "sans_porc"];
+const D_VEGAN: DietType[] = ["omnivore", "flexitarien", "pescetarien", "vegetarien", "vegan", "sans_porc"];
+
+type FrSeed = {
+  id: string; name: string; cat: string;
+  kcal: number; p: number; c: number; f: number; fib?: number;
+  unit?: Food["unit"]; state?: Food["state"];
+  servingGrams?: number; servingLabel?: string; packageSize?: number; purchaseUnit?: string;
+  brand?: string; barcode?: string; icon?: string;
+  aliases?: string[]; allergens?: string[]; diets?: DietType[];
+  nutriScore?: string; novaGroup?: number;
+  reliability?: Food["reliability"]; source?: Food["source"]; sourceRef?: string;
+};
+
+const frCommonSeeds: FrSeed[] = [
+  // Fast-food & plats
+  { id:"fr_bigmac", name:"Big Mac", cat:"Plaisirs, Surgelés & Divers", kcal:257, p:11.8, c:20.1, f:15, fib:1.6, servingGrams:219, servingLabel:"burger", brand:"McDonald's", icon:"🍔", diets:D_MEAT, allergens:["gluten","lait","sesame","moutarde"], nutriScore:"D", novaGroup:4, sourceRef:"McDonald's France, portion ~219 g." },
+  { id:"fr_cheeseburger", name:"Cheeseburger", cat:"Plaisirs, Surgelés & Divers", kcal:261, p:12.2, c:26.1, f:11.3, fib:1.5, servingGrams:115, servingLabel:"burger", brand:"McDonald's", icon:"🍔", diets:D_MEAT, allergens:["gluten","lait","sesame","moutarde"], nutriScore:"D", novaGroup:4, aliases:["cheeseburger","cheese burger"] },
+  { id:"fr_hamburger", name:"Hamburger", cat:"Plaisirs, Surgelés & Divers", kcal:250, p:12, c:29, f:9, fib:1.5, servingGrams:105, servingLabel:"burger", brand:"McDonald's", icon:"🍔", diets:D_MEAT, allergens:["gluten","sesame","moutarde"], nutriScore:"C", novaGroup:4, aliases:["hamburger"] },
+  { id:"fr_frites_mcdo", name:"Frites McDonald's", cat:"Plaisirs, Surgelés & Divers", kcal:299, p:3.4, c:43, f:15, fib:3.9, servingGrams:114, servingLabel:"moyenne", brand:"McDonald's", icon:"🍟", diets:D_VEGE, allergens:[], nutriScore:"C", novaGroup:4, aliases:["frites mcdo","frites","french fries","frite"], sourceRef:"Frites McDonald's, portion moyenne ~114 g." },
+  { id:"fr_nuggets", name:"Nuggets de poulet", cat:"Viandes, Poissons & Protéines", kcal:296, p:15, c:16, f:18, fib:1, servingGrams:17, servingLabel:"nugget", icon:"🍗", diets:D_MEAT, allergens:["gluten"], nutriScore:"D", novaGroup:4, aliases:["nuggets","chicken nuggets","mcnuggets","nugget"] },
+  { id:"fr_kebab", name:"Kebab (sandwich grec)", cat:"Plaisirs, Surgelés & Divers", kcal:215, p:12, c:18, f:11, fib:1.5, servingGrams:350, servingLabel:"kebab", icon:"🥙", diets:D_MEAT, allergens:["gluten"], reliability:"estime", nutriScore:"D", novaGroup:4, aliases:["kebab","sandwich grec","durum","doner"], sourceRef:"Pain, viande, sauce et frites : très variable selon l'enseigne (~350 g)." },
+  { id:"fr_tacos", name:"Tacos français", cat:"Plaisirs, Surgelés & Divers", kcal:230, p:9, c:24, f:11, fib:2, servingGrams:400, servingLabel:"tacos", icon:"🌯", diets:D_MEAT, allergens:["gluten","lait"], reliability:"estime", nutriScore:"D", novaGroup:4, aliases:["tacos","french tacos","tacos francais"], sourceRef:"Tacos viande + sauce fromagère : moyenne, très variable." },
+  { id:"fr_pizza_margherita", name:"Pizza margherita", cat:"Plaisirs, Surgelés & Divers", kcal:250, p:11, c:30, f:9, fib:2, icon:"🍕", diets:D_VEGE, allergens:["gluten","lait"], reliability:"estime", nutriScore:"C", novaGroup:4, aliases:["pizza","margherita","pizza margherita"] },
+  { id:"fr_jambon_beurre", name:"Sandwich jambon-beurre", cat:"Céréales & Pain", kcal:250, p:10, c:30, f:9, fib:2, servingGrams:200, servingLabel:"sandwich", icon:"🥪", diets:D_MEAT_PORK, allergens:["gluten","lait"], reliability:"estime", aliases:["jambon beurre","sandwich jambon beurre","parisien"] },
+  { id:"fr_panini", name:"Panini jambon fromage", cat:"Plaisirs, Surgelés & Divers", kcal:270, p:12, c:28, f:12, fib:2, servingGrams:220, servingLabel:"panini", icon:"🥪", diets:D_MEAT_PORK, allergens:["gluten","lait"], reliability:"estime", aliases:["panini","panini jambon fromage"] },
+  { id:"fr_quiche_lorraine", name:"Quiche lorraine", cat:"Plaisirs, Surgelés & Divers", kcal:280, p:9, c:20, f:18, fib:1, icon:"🥧", diets:D_MEAT_PORK, allergens:["gluten","lait","oeufs"], reliability:"estime", aliases:["quiche","quiche lorraine"] },
+  { id:"fr_croque_monsieur", name:"Croque-monsieur", cat:"Plaisirs, Surgelés & Divers", kcal:280, p:14, c:22, f:15, fib:1.5, icon:"🥪", diets:D_MEAT_PORK, allergens:["gluten","lait"], reliability:"estime", aliases:["croque monsieur","croque"] },
+  { id:"fr_sushi", name:"Sushi (assortiment)", cat:"Plaisirs, Surgelés & Divers", kcal:145, p:5, c:25, f:2.5, fib:1, icon:"🍣", diets:D_FISH, allergens:["poisson","soja"], reliability:"estime", aliases:["sushi","sushis","maki","california"] },
+  { id:"fr_crepe_sucre", name:"Crêpe au sucre", cat:"Céréales & Pain", kcal:230, p:6, c:35, f:7, fib:1, servingGrams:70, servingLabel:"crêpe", icon:"🥞", diets:D_VEGE, allergens:["gluten","lait","oeufs"], aliases:["crepe","crepe sucre","crêpe"] },
+  // Boulangerie
+  { id:"fr_croissant", name:"Croissant", cat:"Céréales & Pain", kcal:406, p:8, c:46, f:21, fib:2.6, servingGrams:55, servingLabel:"croissant", icon:"🥐", diets:D_VEGE, allergens:["gluten","lait","oeufs"], aliases:["croissant"], sourceRef:"Croissant au beurre, ~55 g pièce." },
+  { id:"fr_pain_chocolat", name:"Pain au chocolat", cat:"Céréales & Pain", kcal:414, p:7.5, c:47, f:22, fib:2.7, servingGrams:65, servingLabel:"pain au chocolat", icon:"🥐", diets:D_VEGE, allergens:["gluten","lait","oeufs"], aliases:["pain au chocolat","chocolatine","pain choc"] },
+  { id:"fr_pain_raisins", name:"Pain aux raisins", cat:"Céréales & Pain", kcal:360, p:7, c:50, f:15, fib:2.5, servingGrams:90, servingLabel:"pain aux raisins", icon:"🥐", diets:D_VEGE, allergens:["gluten","lait","oeufs"], aliases:["pain aux raisins","escargot aux raisins"] },
+  { id:"fr_chausson_pommes", name:"Chausson aux pommes", cat:"Céréales & Pain", kcal:330, p:4, c:40, f:17, fib:1.8, servingGrams:90, servingLabel:"chausson", icon:"🥐", diets:D_VEGE, allergens:["gluten","lait"], aliases:["chausson aux pommes","chausson pomme"] },
+  { id:"fr_eclair_chocolat", name:"Éclair au chocolat", cat:"Plaisirs, Surgelés & Divers", kcal:280, p:5, c:35, f:13, fib:1, servingGrams:90, servingLabel:"éclair", icon:"🍫", diets:D_VEGE, allergens:["gluten","lait","oeufs"], aliases:["eclair","eclair au chocolat","éclair"] },
+  // Produits de marque
+  { id:"fr_nutella", name:"Nutella", cat:"Épicerie, Huiles & Condiments", kcal:539, p:6.3, c:57.5, f:30.9, fib:0, unit:"g", state:"standard", brand:"Ferrero", barcode:"3017620422003", icon:"🍫", diets:D_VEGE, allergens:["lait","fruits_a_coque","soja"], nutriScore:"E", novaGroup:4, reliability:"precis", source:"openfoodfacts", aliases:["nutella","pate a tartiner","pate a tartiner chocolat noisette"], sourceRef:"Étiquette Nutella (Ferrero), pour 100 g." },
+  { id:"fr_coca_cola", name:"Coca-Cola", cat:"Plaisirs, Surgelés & Divers", kcal:42, p:0, c:10.6, f:0, fib:0, unit:"ml", state:"standard", brand:"Coca-Cola", barcode:"5449000000996", icon:"🥤", diets:D_VEGAN, allergens:[], nutriScore:"E", novaGroup:4, reliability:"precis", source:"openfoodfacts", aliases:["coca","coca cola","coca-cola","coke"], sourceRef:"Coca-Cola, pour 100 ml." },
+  { id:"fr_coca_zero", name:"Coca-Cola Zero", cat:"Plaisirs, Surgelés & Divers", kcal:0.3, p:0, c:0, f:0, fib:0, unit:"ml", state:"standard", brand:"Coca-Cola", barcode:"5449000131805", icon:"🥤", diets:D_VEGAN, allergens:[], novaGroup:4, reliability:"precis", source:"openfoodfacts", aliases:["coca zero","coca cola zero","coca-cola zero","coke zero"], sourceRef:"Coca-Cola Zero, pour 100 ml." },
+  { id:"fr_kinder_bueno", name:"Kinder Bueno", cat:"Plaisirs, Surgelés & Divers", kcal:571, p:8.6, c:49.5, f:37.3, fib:2.5, servingGrams:21.5, servingLabel:"barre", brand:"Kinder", icon:"🍫", diets:D_VEGE, allergens:["lait","fruits_a_coque","soja","gluten"], nutriScore:"E", novaGroup:4, aliases:["kinder bueno","bueno"] },
+  { id:"fr_prince", name:"Prince (biscuit chocolat)", cat:"Plaisirs, Surgelés & Divers", kcal:466, p:6.5, c:69, f:18, fib:3.5, servingGrams:18, servingLabel:"biscuit", brand:"LU", icon:"🍪", diets:D_VEGE, allergens:["gluten","lait","soja"], nutriScore:"D", novaGroup:4, reliability:"estime", aliases:["prince","prince lu","biscuit prince","prince chocolat"] },
+  { id:"fr_petit_beurre", name:"Petit Beurre", cat:"Plaisirs, Surgelés & Divers", kcal:439, p:7, c:73, f:12, fib:2.8, servingGrams:8.3, servingLabel:"biscuit", brand:"LU", icon:"🍪", diets:D_VEGE, allergens:["gluten","lait"], nutriScore:"C", novaGroup:4, aliases:["petit beurre","veritable petit beurre","lu petit beurre"] },
+  { id:"fr_danette", name:"Danette chocolat", cat:"Produits Laitiers & Crèmerie", kcal:118, p:3.5, c:19, f:3.4, fib:0.9, servingGrams:125, servingLabel:"pot", brand:"Danone", icon:"🍮", diets:D_VEGE, allergens:["lait"], nutriScore:"C", novaGroup:4, aliases:["danette","danette chocolat","creme dessert"] },
+  { id:"fr_vache_qui_rit", name:"La Vache qui rit", cat:"Produits Laitiers & Crèmerie", kcal:267, p:10, c:7, f:22, fib:0, servingGrams:17.5, servingLabel:"portion", brand:"La Vache qui rit", icon:"🧀", diets:D_VEGE, allergens:["lait"], nutriScore:"C", aliases:["vache qui rit","la vache qui rit"] },
+  { id:"fr_babybel", name:"Mini Babybel", cat:"Produits Laitiers & Crèmerie", kcal:298, p:22, c:0, f:24, fib:0, servingGrams:20, servingLabel:"portion", brand:"Babybel", icon:"🧀", diets:D_VEGE, allergens:["lait"], nutriScore:"C", aliases:["babybel","mini babybel"] },
+  { id:"fr_pompotes", name:"Pom'Potes pomme", cat:"Fruits & Légumes", kcal:64, p:0.3, c:15, f:0.1, fib:1.1, servingGrams:90, servingLabel:"gourde", brand:"Pom'Potes", icon:"🍎", diets:D_VEGAN, allergens:[], nutriScore:"B", aliases:["pom potes","pompotes","compote gourde","gourde compote"] },
+  { id:"fr_pain_de_mie", name:"Pain de mie", cat:"Céréales & Pain", kcal:270, p:8, c:48, f:4, fib:3, state:"standard", brand:"Harry's", servingGrams:30, servingLabel:"tranche", icon:"🍞", diets:D_VEGE, allergens:["gluten","lait"], nutriScore:"C", aliases:["pain de mie","harrys","harry's","pain mie"] },
+  { id:"fr_jambon_blanc", name:"Jambon blanc", cat:"Viandes, Poissons & Protéines", kcal:115, p:18, c:1, f:4, fib:0, state:"standard", brand:"Herta", servingGrams:40, servingLabel:"tranche", icon:"🥓", diets:D_MEAT_PORK, allergens:[], nutriScore:"B", aliases:["jambon","jambon blanc","le bon paris","jambon de paris","herta jambon"] },
+];
+
+function makeFrFood(s: FrSeed): Food {
+  const unit = s.unit || "g";
+  const prices = Object.keys(STORES).reduce((acc, key) => ({ ...acc, [key]: priceFor(s.name, s.cat, key as Store) }), {} as Record<Store, number>);
+  return {
+    id: s.id,
+    name: s.name,
+    category: s.cat,
+    state: s.state || "prepare",
+    unit,
+    purchaseUnit: s.purchaseUnit || (unit === "ml" ? "bouteille" : "portion"),
+    packageSize: s.packageSize || (unit === "ml" ? 1000 : 1000),
+    usableInRecipe: false,
+    diets: s.diets || inferDiets(s.name),
+    allergens: s.allergens || inferAllergens(s.name),
+    prices,
+    macros: { kcal: s.kcal, protein: s.p, carbs: s.c, fat: s.f, fiber: s.fib || 0 },
+    micros: {},
+    reliability: s.reliability || "standard",
+    source: s.source || "manual",
+    sourceRef: s.sourceRef || "Valeur moyenne pour ce produit : peut varier selon la recette ou l'enseigne, vérifie au code-barres si possible.",
+    brand: s.brand,
+    barcode: s.barcode,
+    aliases: s.aliases,
+    icon: s.icon,
+    servingLabel: s.servingLabel,
+    servingGrams: s.servingGrams,
+    nutriScore: s.nutriScore,
+    novaGroup: s.novaGroup,
+  } satisfies Food;
+}
+
+const frCommonFoods: Food[] = frCommonSeeds.map(makeFrFood);
 
 
 type SupplementSeed = {
@@ -367,7 +482,7 @@ function buildSearchIndex(list: Food[]) {
 }
 
 // Aliments « cœur » toujours présents (compléments, marques, base interne), légers, dans le bundle.
-const coreFoods: Food[] = [...supplementFoods, ...brandedFoods, ...localFoods];
+const coreFoods: Food[] = [...supplementFoods, ...brandedFoods, ...frCommonFoods, ...localFoods];
 // La base Ciqual (3 484 aliments) est chargée à la demande (import dynamique) pour alléger l'ouverture.
 export let foods: Food[] = coreFoods;
 let foodById = new Map<string, Food>(foods.map(f => [f.id, f]));
@@ -401,22 +516,45 @@ function relevanceScore(food: Food, q: string) {
   else if (name.includes(q)) score -= 25;
   if (category.includes(q)) score -= 10;
   if ((food.aliases || []).some(a => normalizeFoodText(a) === q)) score -= 35;
-  if (food.source === "openfoodfacts") score -= 12;
-  if (food.source === "ciqual") score -= 8;
+  // Priorité : aliments curés fiables (marque/interne vérifié) devant Ciqual officiel,
+  // et estimations grossières reléguées en fin de liste.
+  if (food.source === "manual" && food.reliability !== "estime") score -= 14;
+  else if (food.source === "openfoodfacts") score -= 12;
+  else if (food.source === "ciqual") score -= 8;
+  if (food.source === "estimated" || food.reliability === "estime") score += 8;
   if (food.reliability === "precis") score -= 5;
   return score;
 }
 
+function scoreFood(food: Food, q: string, qx: string) {
+  const s = relevanceScore(food, q);
+  return qx !== q ? Math.min(s, relevanceScore(food, qx)) : s;
+}
+
 export function searchFoods(query: string, opts?: { category?: string; diet?: DietType; excludeAllergens?: string[] }) {
   const q = normalizeFoodText(query.trim());
-  return foodSearchIndex
+  const qx = expandQuery(q); // terme canonique si l'utilisateur a tapé un synonyme/abréviation
+  const sorted = foodSearchIndex
     .filter(({ f, text }) => {
-      if (q && !text.includes(q)) return false;
+      if (q && !text.includes(q) && !(qx !== q && text.includes(qx))) return false;
       if (opts?.category && opts.category !== "all" && f.category !== opts.category) return false;
       if (opts?.diet && !f.diets.includes(opts.diet)) return false;
       if (opts?.excludeAllergens?.some(a => f.allergens.includes(a))) return false;
       return true;
     })
     .map(x => x.f)
-    .sort((a, b) => relevanceScore(a, q) - relevanceScore(b, q) || a.name.localeCompare(b.name, "fr"));
+    // Score = le meilleur (plus bas) entre la requête tapée et sa forme canonique,
+    // pour ne pas pénaliser une correspondance directe quand un synonyme est appliqué.
+    .sort((a, b) => scoreFood(a, q, qx) - scoreFood(b, q, qx) || a.name.localeCompare(b.name, "fr"));
+  // Dédoublonnage : on ne garde que la première occurrence (la mieux classée) par nom normalisé,
+  // pour éviter que des entrées Ciqual quasi identiques ne noient la liste.
+  const seen = new Set<string>();
+  const out: Food[] = [];
+  for (const f of sorted) {
+    const key = normalizeFoodText(f.name);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(f);
+  }
+  return out;
 }
