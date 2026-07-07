@@ -730,6 +730,9 @@ export default function MacroTrackerApp() {
           </div>
           <p className="muted">{effortFuel.carbType === "mix" ? tr("eff.carbTypeMix") : tr("eff.carbTypeSimple")}</p>
           <p className="notice">⏱️ {tr("eff.tip")}</p>
+          <p className="form-help">🥤 {tr("eff.drinkSpec")}</p>
+          <p className="form-help">💧 {tr("eff.dehydration")}</p>
+          <p className="form-help" style={{opacity:0.7}}>{tr("eff.fuelSrc")}</p>
           <button className="btn" style={{marginTop:8}} onClick={()=>logEffortFuel(effortFuel.carbsTotal, effortFuel.fluidTotal)}>{tr("eff.addJournal")}</button>
         </>}
       </div>
