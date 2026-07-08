@@ -5,6 +5,7 @@ import type { Session } from "@supabase/supabase-js";
 import { ensureCiqualLoaded, estimateServingGrams, findFood, foods, formatQuantity, isPieceInput, quantityToNutritionGrams, searchFoods, STORES } from "@/lib/food-engine";
 import { adaptiveTDEE, average7, calculateTargets, effortFueling, logMacros, recipeMacros, sumIngredients, tdeeHistory, trainingZones, weightTrendRecommendation, weightTrendPerWeek, type EffortIntensity } from "@/lib/nutrition";
 import { makeT, LANGS, type Lang } from "@/lib/i18n";
+import { TRAINING_METHODS, MEASURE_TOOLS, GOAL_SESSIONS, COMMON_MISTAKES, WEEK_PLAN, bi } from "@/lib/training";
 import { buildShoppingList, generateProgram, scoreProgram } from "@/lib/planner";
 import { seedRecipes } from "@/data/recipes";
 import { createBrowserSupabaseClient } from "@/lib/supabase";
@@ -769,6 +770,11 @@ export default function MacroTrackerApp() {
         <p className="form-help" style={{opacity:0.7}}>{tr("eff.coldSrc")}</p>
       </div>
       <div className="card span-12"><h2>{tr("eff.sleepTitle")}</h2><p>{tr("eff.sleepTarget")}</p><p className="muted">{tr("eff.sleepNutri")}</p><p className="muted">{tr("eff.sleepHydra")}</p><p className="notice">{tr("eff.sleepWarn")}</p><p className="form-help" style={{opacity:0.7}}>{tr("eff.sleepSrc")}</p></div>
+      <div className="card span-12"><h2>{tr("eff.mTitle")}</h2><div className="scroll"><table className="table"><thead><tr><th>{tr("eff.mFilCol")}</th><th>{tr("eff.mObj")}</th><th>{tr("eff.mMeth")}</th><th>{tr("eff.mEx")}</th><th>{tr("eff.mInt")}</th><th>{tr("eff.mRec")}</th></tr></thead><tbody>{TRAINING_METHODS.map((r,i)=><tr key={i}><td><strong>{bi(r.fil,lang)}</strong></td><td>{bi(r.obj,lang)}</td><td>{bi(r.meth,lang)}</td><td>{bi(r.ex,lang)}</td><td>{bi(r.intensite,lang)}</td><td>{bi(r.recup,lang)}</td></tr>)}</tbody></table></div></div>
+      <div className="card span-6"><h2>{tr("eff.goalTitle")}</h2><div className="scroll"><table className="table"><thead><tr><th>{tr("eff.goalCol")}</th><th>{tr("eff.goalFil")}</th><th>{tr("eff.goalSes")}</th></tr></thead><tbody>{GOAL_SESSIONS.map((r,i)=><tr key={i}><td><strong>{bi(r.goal,lang)}</strong></td><td>{bi(r.fil,lang)}</td><td>{bi(r.session,lang)}</td></tr>)}</tbody></table></div></div>
+      <div className="card span-6"><h2>{tr("eff.toolTitle")}</h2><div className="scroll"><table className="table"><thead><tr><th>{tr("eff.toolCol")}</th><th>{tr("eff.toolRepl")}</th><th>{tr("eff.toolUse")}</th></tr></thead><tbody>{MEASURE_TOOLS.map((r,i)=><tr key={i}><td><strong>{bi(r.tool,lang)}</strong></td><td>{bi(r.repl,lang)}</td><td>{bi(r.use,lang)}</td></tr>)}</tbody></table></div></div>
+      <div className="card span-6"><h2>{tr("eff.mistTitle")}</h2><div className="scroll"><table className="table"><thead><tr><th>{tr("eff.mistErr")}</th><th>{tr("eff.mistWhy")}</th><th>{tr("eff.mistFix")}</th></tr></thead><tbody>{COMMON_MISTAKES.map((r,i)=><tr key={i}><td><strong>{bi(r.err,lang)}</strong></td><td>{bi(r.why,lang)}</td><td>{bi(r.fix,lang)}</td></tr>)}</tbody></table></div></div>
+      <div className="card span-6"><h2>{tr("eff.weekTitle")}</h2><div className="scroll"><table className="table"><thead><tr><th>{tr("eff.weekDay")}</th><th>{tr("eff.weekSes")}</th><th>{tr("eff.weekFil")}</th></tr></thead><tbody>{WEEK_PLAN.map((r,i)=><tr key={i}><td><strong>{bi(r.day,lang)}</strong></td><td>{bi(r.session,lang)}</td><td>{bi(r.fil,lang)}</td></tr>)}</tbody></table></div></div>
       <div className="card span-12"><p className="form-help">{tr("eff.vitamins")}</p><p className="form-help">{tr("eff.disclaimer")}</p></div>
     </section>}
 
