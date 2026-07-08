@@ -720,6 +720,7 @@ export default function MacroTrackerApp() {
           <div className="span-3"><label>{tr("eff.intensity")}</label><select value={effortIntensity} onChange={e=>setEffortIntensity(e.target.value as EffortIntensity)}><option value="facile">{tr("eff.intFacile")}</option><option value="modere">{tr("eff.intModere")}</option><option value="intense">{tr("eff.intIntense")}</option></select></div>
           <div className="span-3"><label>{tr("eff.heat")}</label><div className="toggle-line" style={{margin:0}}><input type="checkbox" checked={effortHeat} onChange={e=>setEffortHeat(e.target.checked)}/><span>☀️ {tr("eff.heat")}</span></div></div>
         </div>
+        <div className="notice" style={{marginTop:10}}><strong>{tr("eff.zonesTitle")}</strong><p className="form-help">{tr("eff.zone1")}</p><p className="form-help">{tr("eff.zone2")}</p><p className="form-help">{tr("eff.zone3")}</p></div>
       </div>
       <div className="card span-8"><h2>{tr("eff.during")} · {effortFuel.hours} h</h2>
         {!effortFuel.needsFuel ? <p className="notice">{tr("eff.noFuel")}</p> : <>
