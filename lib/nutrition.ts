@@ -121,6 +121,37 @@ export type EffortFuel = {
   preMealCarbs: number | null;
   postCarbs: number; postProtein: number;
 };
+// Récap hebdomadaire : synthèse des 7 derniers jours pour une carte partageable.
+export function weeklyRecap(logs: MealLogItem[], weights: WeightLog[], days = 7) {
+  const localISO = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  const dayList: string[] = [];
+  for (let i = 0; i < days; i++) { const d = new Date(); d.setDate(d.getDate() - i); dayList.push(localISO(d)); }
+  const inWindow = new Set(dayList);
+  let totalKcal = 0, totalP = 0, totalC = 0, totalF = 0, daysLogged = 0;
+  for (const d of dayList) {
+    const m = logMacros(logs, d);
+    if (m.kcal > 0) { daysLogged++; totalKcal += m.kcal; totalP += m.protein; totalC += m.carbs; totalF += m.fat; }
+  }
+  const foodCount: Record<string, number> = {};
+  for (const l of logs) { if (inWindow.has(l.date)) foodCount[l.foodId] = (foodCount[l.foodId] || 0) + 1; }
+  let topId: string | null = null, topN = 0;
+  for (const [id, c] of Object.entries(foodCount)) { if (c > topN) { topN = c; topId = id; } }
+  const topFood = topId ? (findFood(topId)?.name ?? null) : null;
+  const inPeriod = weights.filter((w) => inWindow.has(w.date)).sort((a, b) => a.date.localeCompare(b.date));
+  const weightChange = inPeriod.length >= 2 ? Math.round((inPeriod[inPeriod.length - 1].weightKg - inPeriod[0].weightKg) * 100) / 100 : null;
+  const div = daysLogged || 1;
+  return {
+    daysLogged,
+    avgKcal: Math.round(totalKcal / div),
+    avgProtein: Math.round(totalP / div),
+    avgCarbs: Math.round(totalC / div),
+    avgFat: Math.round(totalF / div),
+    totalKcal: Math.round(totalKcal),
+    weightChange,
+    topFood,
+  };
+}
+
 // Zones d'entraînement (modèle à 5 zones). Bornes en % : ACSM, Guidelines for Exercise
 // Testing and Prescription, 2018. Seuils calculés par la FC de réserve (Karvonen 1957)
 // si la FC de repos est connue (plus précis), sinon en % de la FC max. Logique de

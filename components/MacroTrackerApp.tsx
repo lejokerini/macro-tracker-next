@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { ensureCiqualLoaded, estimateServingGrams, findFood, foods, formatQuantity, isPieceInput, quantityToNutritionGrams, searchFoods, STORES } from "@/lib/food-engine";
-import { adaptiveTDEE, average7, calculateTargets, effortFueling, logMacros, recipeMacros, sumIngredients, tdeeHistory, trainingZones, weightTrendRecommendation, weightTrendPerWeek, type EffortIntensity } from "@/lib/nutrition";
+import { adaptiveTDEE, average7, calculateTargets, effortFueling, logMacros, recipeMacros, sumIngredients, tdeeHistory, trainingZones, weeklyRecap, weightTrendRecommendation, weightTrendPerWeek, type EffortIntensity } from "@/lib/nutrition";
 import { makeT, LANGS, type Lang } from "@/lib/i18n";
 import { TRAINING_METHODS, MEASURE_TOOLS, GOAL_SESSIONS, COMMON_MISTAKES, WEEK_PLAN, bi } from "@/lib/training";
 import { buildShoppingList, generateProgram, scoreProgram } from "@/lib/planner";
@@ -249,6 +249,7 @@ export default function MacroTrackerApp() {
   const adaptiveTdee = adaptiveTDEE(state.logs, state.weights);
   const tdeeHist = tdeeHistory(state.logs, state.weights);
   const effortFuel = effortFueling({ durationMin: effortMin, intensity: effortIntensity, weightKg: activeProfile?.weightKg || 70, heat: effortHeat });
+  const recap = weeklyRecap(state.logs, state.weights);
   const fcMax = activeProfile?.age && activeProfile.age > 0 ? Math.round(208 - 0.7 * activeProfile.age) : null; // FC max estimée (Tanaka 2001)
   const zoneCalc = fcMax ? trainingZones(fcMax, effortRestHr > 0 ? effortRestHr : undefined) : null;
   // Calories conseillées pour tenir le rythme de l'objectif (base = TDEE réel si fiable, sinon maintien théorique).
@@ -535,6 +536,20 @@ export default function MacroTrackerApp() {
     setState(s => ({ ...s, profiles: s.profiles.map(p => p.id === s.activeProfileId ? { ...p, customKcal: kcal } : p) }));
     showToast(`${tr("w.appliedPre")}${kcal} ${tr("w.perDay")}`);
   }
+  function shareRecap() {
+    const parts = [
+      tr("recap.shareText"),
+      `${recap.avgKcal} ${tr("recap.avgKcal")} · ${recap.daysLogged}/7 ${tr("recap.days")}`,
+      `P ${recap.avgProtein}g · G ${recap.avgCarbs}g · L ${recap.avgFat}g ${tr("recap.perDayShort")}`,
+    ];
+    if (recap.weightChange != null && recap.weightChange !== 0) parts.push(`${tr("recap.weight")} ${recap.weightChange > 0 ? "+" : ""}${recap.weightChange} kg`);
+    if (streak > 0) parts.push(`${streak} ${tr("recap.streak")}`);
+    const text = parts.join("\n");
+    const nav = navigator as Navigator & { share?: (d: { title?: string; text?: string }) => Promise<void> };
+    if (nav.share) { nav.share({ title: tr("recap.title"), text }).catch(() => {}); }
+    else if (navigator.clipboard) { navigator.clipboard.writeText(text).then(() => showToast(tr("recap.screenshot"))).catch(() => {}); }
+    else { showToast(tr("recap.screenshot")); }
+  }
   function applyGoal(g: (typeof GOAL_SESSIONS)[number]) {
     setEffortMin(g.durationMin);
     setEffortIntensity(g.intensity);
@@ -785,6 +800,25 @@ export default function MacroTrackerApp() {
     </section>}
 
     {tab === "progres" && <section className="grid">
+      <div className="card span-12" style={{background:"linear-gradient(135deg,#173018,#2f6b2f)",color:"#fff",border:"none"}}>
+        <div className="space"><h2 style={{color:"#fff",margin:0}}>📊 {tr("recap.title")}</h2><span style={{opacity:.85,fontWeight:900,letterSpacing:"-.02em"}}>Macrolens</span></div>
+        {recap.daysLogged === 0 ? <p style={{opacity:.9,marginTop:8}}>{tr("recap.needData")}</p> : <>
+          <div style={{display:"flex",alignItems:"baseline",gap:10,margin:"10px 0"}}><strong style={{fontSize:44,letterSpacing:"-.04em"}}>{recap.avgKcal}</strong><span style={{opacity:.9}}>{tr("recap.avgKcal")} · {recap.daysLogged}/7 {tr("recap.days")}</span></div>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(3,minmax(0,1fr))",gap:8}}>
+            <div style={{background:"rgba(255,255,255,.12)",borderRadius:14,padding:"10px 6px",textAlign:"center"}}><span style={{opacity:.85,fontSize:12,fontWeight:900}}>{tr("recap.protein")}</span><br/><strong style={{fontSize:20}}>{recap.avgProtein} g</strong></div>
+            <div style={{background:"rgba(255,255,255,.12)",borderRadius:14,padding:"10px 6px",textAlign:"center"}}><span style={{opacity:.85,fontSize:12,fontWeight:900}}>{tr("recap.carbs")}</span><br/><strong style={{fontSize:20}}>{recap.avgCarbs} g</strong></div>
+            <div style={{background:"rgba(255,255,255,.12)",borderRadius:14,padding:"10px 6px",textAlign:"center"}}><span style={{opacity:.85,fontSize:12,fontWeight:900}}>{tr("recap.fat")}</span><br/><strong style={{fontSize:20}}>{recap.avgFat} g</strong></div>
+          </div>
+          <div style={{marginTop:10,display:"flex",flexDirection:"column",gap:4}}>
+            {recap.weightChange != null && recap.weightChange !== 0 && <span>⚖️ <strong>{recap.weightChange>0?"+":""}{recap.weightChange} kg</strong> {recap.weightChange>0?tr("recap.weightUp"):tr("recap.weightDown")}</span>}
+            {adaptiveTdee.reliable && <span>🔥 {tr("recap.tdee")} : <strong>{adaptiveTdee.tdee} kcal</strong></span>}
+            {recap.topFood && <span>🍽️ {tr("recap.topFood")} : <strong>{recap.topFood}</strong></span>}
+            {streak > 0 && <span>📆 <strong>{streak}</strong> {tr("recap.streak")}</span>}
+          </div>
+          <div className="row" style={{marginTop:12}}><button className="btn secondary" onClick={shareRecap}>{tr("recap.share")}</button></div>
+          <p style={{opacity:.75,fontSize:12,marginTop:8}}>{tr("recap.screenshot")}</p>
+        </>}
+      </div>
       <div className="card span-12">
         <div className="space"><h2>{tr("prog.title")}</h2>{streak > 0 && <span className="streak-badge">🔥 {streak} {streak > 1 ? tr("prog.streakDays") : tr("prog.streakDay")} {tr("prog.streakSuffix")}</span>}</div>
         <div className="row" style={{marginBottom:10}}>{[{d:7,l:tr("prog.p7")},{d:30,l:tr("prog.p30")},{d:182,l:tr("prog.p6m")},{d:365,l:tr("prog.p1y")}].map(p=><button key={p.d} type="button" className={`filter-chip ${progressPeriod===p.d?"active":""}`} onClick={()=>setProgressPeriod(p.d)}>{p.l}</button>)}</div>
