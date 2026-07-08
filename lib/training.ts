@@ -62,6 +62,37 @@ export const COMMON_MISTAKES: MistakeRow[] = [
   { err:{fr:"Faire du lactique trop souvent",es:"Hacer láctico demasiado a menudo"}, why:{fr:"Très fatigant nerveusement et musculairement",es:"Muy fatigante a nivel nervioso y muscular"}, fix:{fr:"1 fois / semaine suffit souvent",es:"1 vez / semana suele bastar"} },
 ];
 
+// Contribution des filières à la production d'ATP selon la distance de course
+// (Newsholme et al. 1992). (*) : la PCr est utilisée dans les premières secondes.
+export type ContribRow = { dist: string; pcr: string; ana: string; aero: string; note: BiText };
+export const ENERGY_CONTRIB: ContribRow[] = [
+  { dist:"100 m", pcr:"48 %", ana:"48 %", aero:"4 %", note:{fr:"",es:""} },
+  { dist:"200 m", pcr:"25 %", ana:"65 %", aero:"10 %", note:{fr:"",es:""} },
+  { dist:"400 m", pcr:"12,5 %", ana:"62,5 %", aero:"25 %", note:{fr:"",es:""} },
+  { dist:"800 m", pcr:"6 %", ana:"50 %", aero:"44 %", note:{fr:"",es:""} },
+  { dist:"1500 m", pcr:"(*)", ana:"25 %", aero:"75 %", note:{fr:"",es:""} },
+  { dist:"5000 m", pcr:"(*)", ana:"12,5 %", aero:"87,5 %", note:{fr:"",es:""} },
+  { dist:"10 000 m", pcr:"(*)", ana:"3 %", aero:"97 %", note:{fr:"",es:""} },
+  { dist:"Marathon", pcr:"(*)", ana:"1 %", aero:"74 %", note:{fr:"+ 5 % glucose, + 20 % lipides",es:"+ 5 % glucosa, + 20 % lípidos"} },
+  { dist:"80 km", pcr:"(*)", ana:"—", aero:"35 %", note:{fr:"+ 5 % glucose, + 60 % lipides, + AA ramifiés",es:"+ 5 % glucosa, + 60 % lípidos, + AA ramificados"} },
+];
+
+// Cinétique de récupération des filières (resynthèse / élimination).
+export const ENERGY_RECOVERY: BiText[] = [
+  { fr:"PCr (phosphocréatine) : 70 % refaite en 50 s, 84 % en 2 min, ~100 % en 6-8 min. C'est pourquoi les sprints demandent 2-3 min de repos.", es:"PCr (fosfocreatina): 70 % rehecha en 50 s, 84 % en 2 min, ~100 % en 6-8 min. Por eso los sprints necesitan 2-3 min de descanso." },
+  { fr:"Lactate, récupération passive (assis) : 50 % éliminé en 25 min, 100 % en 1 h 30.", es:"Lactato, recuperación pasiva (sentado): 50 % eliminado en 25 min, 100 % en 1 h 30." },
+  { fr:"Lactate, récupération active (footing / vélo léger à 40-60 % VAM) : 50 % en 6 min, 100 % en 20 min → bouger l'élimine bien plus vite.", es:"Lactato, recuperación activa (trote / bici suave al 40-60 % VAM): 50 % en 6 min, 100 % en 20 min → moverse lo elimina mucho más rápido." },
+  { fr:"Glycogène : vidé en ~1 h à 80-85 % VAM ; 50 % refait dès la 5e heure, complet en 12 à 46 h selon l'apport en glucides.", es:"Glucógeno: agotado en ~1 h al 80-85 % VAM; 50 % rehecho ya en la 5.ª hora, completo en 12 a 46 h según el aporte de carbohidratos." },
+];
+
+// Principes clés issus de la bioénergétique.
+export const ENERGY_PRINCIPLES: BiText[] = [
+  { fr:"Développe d'abord ta base aérobie : elle accélère la resynthèse de la PCr entre les sprints, donc plus de vitesse et de puissance ensuite.", es:"Desarrolla primero tu base aeróbica: acelera la resíntesis de la PCr entre sprints, y por tanto más velocidad y potencia después." },
+  { fr:"La récupération active élimine le lactate environ 3 fois plus vite que de rester assis.", es:"La recuperación activa elimina el lactato unas 3 veces más rápido que quedarse sentado." },
+  { fr:"Produire du lactate n'est pas « mauvais » : plus tu en produis par unité de temps, plus tu as fourni de travail (c'est un marqueur d'intensité).", es:"Producir lactato no es «malo»: cuanto más produces por unidad de tiempo, más trabajo has realizado (es un marcador de intensidad)." },
+  { fr:"Plus l'effort dure, plus le corps passe du glycogène aux lipides : d'où les glucides sur les efforts intenses et les réserves de gras sur le très long.", es:"Cuanto más dura el esfuerzo, más pasa el cuerpo del glucógeno a los lípidos: de ahí los carbohidratos en esfuerzos intensos y las reservas de grasa en el muy largo." },
+];
+
 export type WeekRow = { day: BiText; session: BiText; fil: BiText };
 export const WEEK_PLAN: WeekRow[] = [
   { day:{fr:"Jour 1",es:"Día 1"}, session:{fr:"45 min endurance facile",es:"45 min resistencia fácil"}, fil:{fr:"Aérobie basse",es:"Aeróbica baja"} },

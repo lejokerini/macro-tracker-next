@@ -5,7 +5,7 @@ import type { Session } from "@supabase/supabase-js";
 import { ensureCiqualLoaded, estimateServingGrams, findFood, foods, formatQuantity, isPieceInput, quantityToNutritionGrams, searchFoods, STORES } from "@/lib/food-engine";
 import { adaptiveTDEE, average7, calculateTargets, effortFueling, logMacros, recipeMacros, sumIngredients, tdeeHistory, trainingZones, weeklyRecap, weightTrendRecommendation, weightTrendPerWeek, type EffortIntensity } from "@/lib/nutrition";
 import { makeT, LANGS, type Lang } from "@/lib/i18n";
-import { TRAINING_METHODS, MEASURE_TOOLS, GOAL_SESSIONS, COMMON_MISTAKES, WEEK_PLAN, bi } from "@/lib/training";
+import { TRAINING_METHODS, MEASURE_TOOLS, GOAL_SESSIONS, COMMON_MISTAKES, WEEK_PLAN, ENERGY_CONTRIB, ENERGY_RECOVERY, ENERGY_PRINCIPLES, bi } from "@/lib/training";
 import { buildShoppingList, generateProgram, scoreProgram } from "@/lib/planner";
 import { seedRecipes } from "@/data/recipes";
 import { createBrowserSupabaseClient } from "@/lib/supabase";
@@ -815,6 +815,16 @@ export default function MacroTrackerApp() {
       <div className="card span-6"><h2>{tr("eff.toolTitle")}</h2><div className="scroll"><table className="table"><thead><tr><th>{tr("eff.toolCol")}</th><th>{tr("eff.toolRepl")}</th><th>{tr("eff.toolUse")}</th></tr></thead><tbody>{MEASURE_TOOLS.map((r,i)=><tr key={i}><td><strong>{bi(r.tool,lang)}</strong></td><td>{bi(r.repl,lang)}</td><td>{bi(r.use,lang)}</td></tr>)}</tbody></table></div></div>
       <div className="card span-6"><h2>{tr("eff.mistTitle")}</h2><div className="scroll"><table className="table"><thead><tr><th>{tr("eff.mistErr")}</th><th>{tr("eff.mistWhy")}</th><th>{tr("eff.mistFix")}</th></tr></thead><tbody>{COMMON_MISTAKES.map((r,i)=><tr key={i}><td><strong>{bi(r.err,lang)}</strong></td><td>{bi(r.why,lang)}</td><td>{bi(r.fix,lang)}</td></tr>)}</tbody></table></div></div>
       <div className="card span-6"><h2>{tr("eff.weekTitle")}</h2><div className="scroll"><table className="table"><thead><tr><th>{tr("eff.weekDay")}</th><th>{tr("eff.weekSes")}</th><th>{tr("eff.weekFil")}</th></tr></thead><tbody>{WEEK_PLAN.map((r,i)=><tr key={i}><td><strong>{bi(r.day,lang)}</strong></td><td>{bi(r.session,lang)}</td><td>{bi(r.fil,lang)}</td></tr>)}</tbody></table></div></div>
+      <div className="card span-12"><h2>{tr("eff.bioTitle")}</h2>
+        <p className="muted" style={{marginTop:4}}><strong>{tr("eff.bioContrib")}</strong></p>
+        <div className="scroll"><table className="table"><thead><tr><th>{tr("eff.bioDist")}</th><th>PCr</th><th>{tr("eff.q_lac_name")}</th><th>{tr("eff.q_aero_name")}</th><th></th></tr></thead><tbody>{ENERGY_CONTRIB.map((r,i)=><tr key={i}><td><strong>{r.dist}</strong></td><td>{r.pcr}</td><td>{r.ana}</td><td>{r.aero}</td><td>{bi(r.note,lang)}</td></tr>)}</tbody></table></div>
+        <p className="form-help" style={{opacity:0.7}}>{tr("eff.bioNote")}</p>
+        <p className="muted" style={{marginTop:10}}><strong>{tr("eff.bioRecovery")}</strong></p>
+        {ENERGY_RECOVERY.map((t,i)=><p className="form-help" key={i}>• {bi(t,lang)}</p>)}
+        <p className="notice" style={{marginTop:10}}><strong>{tr("eff.bioPrinciples")}</strong></p>
+        {ENERGY_PRINCIPLES.map((t,i)=><p className="form-help" key={i}>✅ {bi(t,lang)}</p>)}
+        <p className="form-help" style={{opacity:0.7}}>{tr("eff.bioSrc")}</p>
+      </div>
       <div className="card span-12"><p className="form-help">{tr("eff.vitamins")}</p><p className="form-help">{tr("eff.disclaimer")}</p></div>
     </section>}
 
