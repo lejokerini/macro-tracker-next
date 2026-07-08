@@ -187,6 +187,7 @@ export default function MacroTrackerApp() {
   const [effortHeat, setEffortHeat] = useState(false);
   const [effortSport, setEffortSport] = useState("run");
   const [effortRestHr, setEffortRestHr] = useState(0);
+  const [effortQuality, setEffortQuality] = useState("aero");
   const [syncStatus, setSyncStatus] = useState("");
   const [autoSync, setAutoSync] = useState(true);
   const [lastCloudSaveAt, setLastCloudSaveAt] = useState<string>("");
@@ -730,6 +731,16 @@ export default function MacroTrackerApp() {
           <p className="form-help">{tr("eff.zoneMap")}</p>
           <p className="form-help" style={{opacity:0.7}}>{tr("eff.fcmaxHint")} {tr("eff.zonesSrc")}</p>
         </>}</div>
+      </div>
+      <div className="card span-12"><h2>{tr("eff.qTitle")}</h2>
+        <div style={{maxWidth:340}}><label>{tr("eff.qPick")}</label><select value={effortQuality} onChange={e=>setEffortQuality(e.target.value)}><option value="aero">{tr("eff.q_aero_name")}</option><option value="vma">{tr("eff.q_vma_name")}</option><option value="lac">{tr("eff.q_lac_name")}</option><option value="alac">{tr("eff.q_alac_name")}</option></select></div>
+        <p style={{marginTop:8}}><strong>{tr("eff.qFil")} :</strong> {tr("eff.q_"+effortQuality+"_fil")}</p>
+        <p><strong>{tr("eff.qDur")} :</strong> {tr("eff.q_"+effortQuality+"_dur")}</p>
+        <p><strong>{tr("eff.qInt")} :</strong> {tr("eff.q_"+effortQuality+"_int")}</p>
+        <p><strong>{tr("eff.qRec")} :</strong> {tr("eff.q_"+effortQuality+"_rec")}</p>
+        <p><strong>{tr("eff.qEx")} :</strong> {tr("eff.q_"+effortQuality+"_ex")}</p>
+        <p className="notice"><strong>{tr("eff.qNut")} :</strong> {tr("eff.q_"+effortQuality+"_nut")}</p>
+        <p className="form-help" style={{opacity:0.7}}>{tr("eff.qSrc")}</p>
       </div>
       <div className="card span-8"><h2>{tr("eff.during")} · {effortFuel.hours} h</h2>
         {!effortFuel.needsFuel ? <p className="notice">{tr("eff.noFuel")}</p> : <>
