@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { ensureCiqualLoaded, estimateServingGrams, findFood, foods, formatQuantity, isPieceInput, quantityToNutritionGrams, searchFoods, STORES } from "@/lib/food-engine";
-import { adaptiveTDEE, average7, calculateTargets, effortFueling, logMacros, recipeMacros, sumIngredients, tdeeHistory, weightTrendRecommendation, weightTrendPerWeek, type EffortIntensity } from "@/lib/nutrition";
+import { adaptiveTDEE, average7, calculateTargets, effortFueling, logMacros, recipeMacros, sumIngredients, tdeeHistory, trainingZones, weightTrendRecommendation, weightTrendPerWeek, type EffortIntensity } from "@/lib/nutrition";
 import { makeT, LANGS, type Lang } from "@/lib/i18n";
 import { buildShoppingList, generateProgram, scoreProgram } from "@/lib/planner";
 import { seedRecipes } from "@/data/recipes";
@@ -186,6 +186,7 @@ export default function MacroTrackerApp() {
   const [effortIntensity, setEffortIntensity] = useState<EffortIntensity>("modere");
   const [effortHeat, setEffortHeat] = useState(false);
   const [effortSport, setEffortSport] = useState("run");
+  const [effortRestHr, setEffortRestHr] = useState(0);
   const [syncStatus, setSyncStatus] = useState("");
   const [autoSync, setAutoSync] = useState(true);
   const [lastCloudSaveAt, setLastCloudSaveAt] = useState<string>("");
@@ -246,6 +247,8 @@ export default function MacroTrackerApp() {
   const adaptiveTdee = adaptiveTDEE(state.logs, state.weights);
   const tdeeHist = tdeeHistory(state.logs, state.weights);
   const effortFuel = effortFueling({ durationMin: effortMin, intensity: effortIntensity, weightKg: activeProfile?.weightKg || 70, heat: effortHeat });
+  const fcMax = activeProfile?.age && activeProfile.age > 0 ? Math.round(208 - 0.7 * activeProfile.age) : null; // FC max estimée (Tanaka 2001)
+  const zoneCalc = fcMax ? trainingZones(fcMax, effortRestHr > 0 ? effortRestHr : undefined) : null;
   // Calories conseillées pour tenir le rythme de l'objectif (base = TDEE réel si fiable, sinon maintien théorique).
   const goalEatKcal = weightGoal && weightGoal.requiredPerWeek != null
     ? Math.round(((adaptiveTdee.reliable ? adaptiveTdee.tdee : maintenanceKcal) + (weightGoal.requiredPerWeek * 7700) / 7) / 10) * 10
@@ -720,7 +723,13 @@ export default function MacroTrackerApp() {
           <div className="span-3"><label>{tr("eff.intensity")}</label><select value={effortIntensity} onChange={e=>setEffortIntensity(e.target.value as EffortIntensity)}><option value="facile">{tr("eff.intFacile")}</option><option value="modere">{tr("eff.intModere")}</option><option value="intense">{tr("eff.intIntense")}</option></select></div>
           <div className="span-3"><label>{tr("eff.heat")}</label><div className="toggle-line" style={{margin:0}}><input type="checkbox" checked={effortHeat} onChange={e=>setEffortHeat(e.target.checked)}/><span>☀️ {tr("eff.heat")}</span></div></div>
         </div>
-        <div className="notice" style={{marginTop:10}}><strong>{tr("eff.zonesTitle")}</strong><p className="form-help">{tr("eff.zone1")}</p><p className="form-help">{tr("eff.zone2")}</p><p className="form-help">{tr("eff.zone3")}</p></div>
+        <div className="notice" style={{marginTop:10}}><strong>{tr("eff.zonesTitle")}</strong>{!zoneCalc ? <p className="form-help">{tr("eff.fcmaxNo")}</p> : <>
+          <div style={{maxWidth:220,marginTop:6}}><label>{tr("eff.restHr")}</label><input type="number" min={0} value={effortRestHr>0?effortRestHr:""} onChange={e=>setEffortRestHr(Math.max(0,Math.round(Number(e.target.value)||0)))}/></div>
+          <p className="form-help"><strong>{tr("eff.fcmax")} : {fcMax} bpm</strong> · {zoneCalc.method === "hrr" ? tr("eff.methodHrr") : tr("eff.methodHrmax")}</p>
+          {zoneCalc.zones.map(z => <p className="form-help" key={z.key}><strong>{tr("eff."+z.key+"Name")} ({z.lowBpm}–{z.highBpm} bpm)</strong> — {tr("eff."+z.key+"Desc")}</p>)}
+          <p className="form-help">{tr("eff.zoneMap")}</p>
+          <p className="form-help" style={{opacity:0.7}}>{tr("eff.fcmaxHint")} {tr("eff.zonesSrc")}</p>
+        </>}</div>
       </div>
       <div className="card span-8"><h2>{tr("eff.during")} · {effortFuel.hours} h</h2>
         {!effortFuel.needsFuel ? <p className="notice">{tr("eff.noFuel")}</p> : <>

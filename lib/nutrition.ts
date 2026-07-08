@@ -121,6 +121,20 @@ export type EffortFuel = {
   preMealCarbs: number | null;
   postCarbs: number; postProtein: number;
 };
+// Zones d'entraînement (modèle à 5 zones). Bornes en % : ACSM, Guidelines for Exercise
+// Testing and Prescription, 2018. Seuils calculés par la FC de réserve (Karvonen 1957)
+// si la FC de repos est connue (plus précis), sinon en % de la FC max. Logique de
+// distribution d'intensité : Seiler, 2010.
+export type TrainingZone = { key: string; lowPct: number; highPct: number; lowBpm: number; highBpm: number };
+export function trainingZones(fcMax: number, fcRest?: number): { method: "hrr" | "hrmax"; zones: TrainingZone[] } {
+  const bounds: [string, number, number][] = [["z1", 50, 60], ["z2", 60, 70], ["z3", 70, 80], ["z4", 80, 90], ["z5", 90, 100]];
+  const useHrr = !!(fcRest && fcRest > 0 && fcRest < fcMax);
+  const rest = fcRest as number;
+  const bpm = (pct: number) => useHrr ? Math.round((pct / 100) * (fcMax - rest) + rest) : Math.round((pct / 100) * fcMax);
+  const zones = bounds.map(([key, lo, hi]) => ({ key, lowPct: lo, highPct: hi, lowBpm: bpm(lo), highBpm: bpm(hi) }));
+  return { method: useHrr ? "hrr" : "hrmax", zones };
+}
+
 export function effortFueling(opts: { durationMin: number; intensity: EffortIntensity; weightKg: number; heat?: boolean }): EffortFuel {
   const durationMin = Math.max(0, opts.durationMin || 0);
   const hours = durationMin / 60;
