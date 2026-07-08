@@ -39,16 +39,17 @@ export const MEASURE_TOOLS: ToolRow[] = [
   { tool:{fr:"Test terrain",es:"Test de campo"}, repl:{fr:"Plus simple que le labo",es:"Más simple que el laboratorio"}, use:{fr:"Cooper, VAMEVAL, Bronco, 30-15 IFT",es:"Cooper, VAMEVAL, Bronco, 30-15 IFT"} },
 ];
 
-export type GoalRow = { goal: BiText; fil: BiText; session: BiText };
+export type GoalIntensity = "facile" | "modere" | "intense";
+export type GoalRow = { goal: BiText; fil: BiText; session: BiText; intensity: GoalIntensity; quality: string; durationMin: number };
 export const GOAL_SESSIONS: GoalRow[] = [
-  { goal:{fr:"Être plus explosif",es:"Ser más explosivo"}, fil:{fr:"Anaérobie alactique",es:"Anaeróbica aláctica"}, session:{fr:"10 × 10 s sprint / 2 min repos",es:"10 × 10 s sprint / 2 min descanso"} },
-  { goal:{fr:"Tenir des rounds intenses",es:"Aguantar rounds intensos"}, fil:{fr:"Anaérobie lactique + aérobie",es:"Anaeróbica láctica + aeróbica"}, session:{fr:"5 × 3 min intense / 1 min repos",es:"5 × 3 min intenso / 1 min descanso"} },
-  { goal:{fr:"Mieux récupérer entre les rounds",es:"Recuperar mejor entre rounds"}, fil:{fr:"Aérobie basse + moyenne",es:"Aeróbica baja + media"}, session:{fr:"45 min endurance fondamentale",es:"45 min resistencia de base"} },
-  { goal:{fr:"Être moins essoufflé",es:"Quedarse menos sin aliento"}, fil:{fr:"Aérobie",es:"Aeróbica"}, session:{fr:"3 × 10 min tempo / 3 min lent",es:"3 × 10 min tempo / 3 min lento"} },
-  { goal:{fr:"Être plus puissant sous fatigue",es:"Ser más potente bajo fatiga"}, fil:{fr:"Mixte",es:"Mixta"}, session:{fr:"Circuit 30/30 pendant 12 à 20 min",es:"Circuito 30/30 durante 12 a 20 min"} },
-  { goal:{fr:"Avoir plus de caisse générale",es:"Tener más fondo general"}, fil:{fr:"Aérobie basse",es:"Aeróbica baja"}, session:{fr:"2 sorties faciles de 45 à 60 min / semaine",es:"2 salidas fáciles de 45 a 60 min / semana"} },
-  { goal:{fr:"Améliorer la tolérance à la brûlure musculaire",es:"Mejorar la tolerancia al ardor muscular"}, fil:{fr:"Anaérobie lactique",es:"Anaeróbica láctica"}, session:{fr:"6 × 45 s très intense / 2 min repos",es:"6 × 45 s muy intenso / 2 min descanso"} },
-  { goal:{fr:"Améliorer la vitesse pure",es:"Mejorar la velocidad pura"}, fil:{fr:"Anaérobie alactique",es:"Anaeróbica aláctica"}, session:{fr:"8 × 20 m sprint, récupération complète",es:"8 × 20 m sprint, recuperación completa"} },
+  { goal:{fr:"Être plus explosif",es:"Ser más explosivo"}, fil:{fr:"Anaérobie alactique",es:"Anaeróbica aláctica"}, session:{fr:"10 × 10 s sprint / 2 min repos",es:"10 × 10 s sprint / 2 min descanso"}, intensity:"intense", quality:"alac", durationMin:40 },
+  { goal:{fr:"Tenir des rounds intenses",es:"Aguantar rounds intensos"}, fil:{fr:"Anaérobie lactique + aérobie",es:"Anaeróbica láctica + aeróbica"}, session:{fr:"5 × 3 min intense / 1 min repos",es:"5 × 3 min intenso / 1 min descanso"}, intensity:"intense", quality:"lac", durationMin:45 },
+  { goal:{fr:"Mieux récupérer entre les rounds",es:"Recuperar mejor entre rounds"}, fil:{fr:"Aérobie basse + moyenne",es:"Aeróbica baja + media"}, session:{fr:"45 min endurance fondamentale",es:"45 min resistencia de base"}, intensity:"facile", quality:"aero", durationMin:45 },
+  { goal:{fr:"Être moins essoufflé",es:"Quedarse menos sin aliento"}, fil:{fr:"Aérobie",es:"Aeróbica"}, session:{fr:"3 × 10 min tempo / 3 min lent",es:"3 × 10 min tempo / 3 min lento"}, intensity:"modere", quality:"aero", durationMin:45 },
+  { goal:{fr:"Être plus puissant sous fatigue",es:"Ser más potente bajo fatiga"}, fil:{fr:"Mixte",es:"Mixta"}, session:{fr:"Circuit 30/30 pendant 12 à 20 min",es:"Circuito 30/30 durante 12 a 20 min"}, intensity:"intense", quality:"lac", durationMin:20 },
+  { goal:{fr:"Avoir plus de caisse générale",es:"Tener más fondo general"}, fil:{fr:"Aérobie basse",es:"Aeróbica baja"}, session:{fr:"2 sorties faciles de 45 à 60 min / semaine",es:"2 salidas fáciles de 45 a 60 min / semana"}, intensity:"facile", quality:"aero", durationMin:60 },
+  { goal:{fr:"Améliorer la tolérance à la brûlure musculaire",es:"Mejorar la tolerancia al ardor muscular"}, fil:{fr:"Anaérobie lactique",es:"Anaeróbica láctica"}, session:{fr:"6 × 45 s très intense / 2 min repos",es:"6 × 45 s muy intenso / 2 min descanso"}, intensity:"intense", quality:"lac", durationMin:30 },
+  { goal:{fr:"Améliorer la vitesse pure",es:"Mejorar la velocidad pura"}, fil:{fr:"Anaérobie alactique",es:"Anaeróbica aláctica"}, session:{fr:"8 × 20 m sprint, récupération complète",es:"8 × 20 m sprint, recuperación completa"}, intensity:"intense", quality:"alac", durationMin:40 },
 ];
 
 export type MistakeRow = { err: BiText; why: BiText; fix: BiText };
