@@ -776,10 +776,15 @@ export default function MacroTrackerApp() {
       <div className="card span-12"><h2>{tr("eff.qTitle")}</h2>
         <div style={{maxWidth:340}}><label>{tr("eff.qPick")}</label><select value={effortQuality} onChange={e=>setEffortQuality(e.target.value)}><option value="aero">{tr("eff.q_aero_name")}</option><option value="vma">{tr("eff.q_vma_name")}</option><option value="lac">{tr("eff.q_lac_name")}</option><option value="alac">{tr("eff.q_alac_name")}</option></select></div>
         <p style={{marginTop:8}}><strong>{tr("eff.qFil")} :</strong> {tr("eff.q_"+effortQuality+"_fil")}</p>
+        <p><strong>{tr("eff.qHow")} :</strong> {tr("eff.q_"+effortQuality+"_how")}</p>
+        <p><strong>{tr("eff.qPow")} :</strong> {tr("eff.q_"+effortQuality+"_pow")}</p>
         <p><strong>{tr("eff.qDur")} :</strong> {tr("eff.q_"+effortQuality+"_dur")}</p>
         <p><strong>{tr("eff.qInt")} :</strong> {tr("eff.q_"+effortQuality+"_int")}</p>
         <p><strong>{tr("eff.qRec")} :</strong> {tr("eff.q_"+effortQuality+"_rec")}</p>
+        <p><strong>{tr("eff.qRecov")} :</strong> {tr("eff.q_"+effortQuality+"_recov")}</p>
         <p><strong>{tr("eff.qEx")} :</strong> {tr("eff.q_"+effortQuality+"_ex")}</p>
+        <p><strong>{tr("eff.qLim")} :</strong> {tr("eff.q_"+effortQuality+"_lim")}</p>
+        <p><strong>{tr("eff.qAdapt")} :</strong> {tr("eff.q_"+effortQuality+"_adapt")}</p>
         <p className="notice"><strong>{tr("eff.qNut")} :</strong> {tr("eff.q_"+effortQuality+"_nut")}</p>
         <p className="form-help" style={{opacity:0.7}}>{tr("eff.qSrc")}</p>
       </div>
