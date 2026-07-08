@@ -189,6 +189,8 @@ export default function MacroTrackerApp() {
   const [effortSport, setEffortSport] = useState("run");
   const [effortRestHr, setEffortRestHr] = useState(0);
   const [effortQuality, setEffortQuality] = useState("aero");
+  const [recapSeen, setRecapSeen] = useState<string | null>(null);
+  const [recapChecked, setRecapChecked] = useState(false);
   const [syncStatus, setSyncStatus] = useState("");
   const [autoSync, setAutoSync] = useState(true);
   const [lastCloudSaveAt, setLastCloudSaveAt] = useState<string>("");
@@ -250,6 +252,7 @@ export default function MacroTrackerApp() {
   const tdeeHist = tdeeHistory(state.logs, state.weights);
   const effortFuel = effortFueling({ durationMin: effortMin, intensity: effortIntensity, weightKg: activeProfile?.weightKg || 70, heat: effortHeat });
   const recap = weeklyRecap(state.logs, state.weights);
+  const recapDue = recapChecked && recap.daysLogged > 0 && (!recapSeen || (new Date(today()).getTime() - new Date(recapSeen).getTime()) / 86400000 >= 7);
   const fcMax = activeProfile?.age && activeProfile.age > 0 ? Math.round(208 - 0.7 * activeProfile.age) : null; // FC max estimée (Tanaka 2001)
   const zoneCalc = fcMax ? trainingZones(fcMax, effortRestHr > 0 ? effortRestHr : undefined) : null;
   // Calories conseillées pour tenir le rythme de l'objectif (base = TDEE réel si fiable, sinon maintien théorique).
@@ -274,6 +277,12 @@ export default function MacroTrackerApp() {
   }, []);
   useEffect(() => { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }, [state]);
   useEffect(() => { localStorage.setItem(`${STORAGE_KEY}:autoSync`, String(autoSync)); }, [autoSync]);
+  useEffect(() => { try { setRecapSeen(localStorage.getItem("macrolens-recap-seen")); } catch {} setRecapChecked(true); }, []);
+  useEffect(() => {
+    if (!recapDue) return;
+    try { if (typeof Notification !== "undefined" && Notification.permission === "granted") new Notification("Macrolens", { body: tr("recap.nudge") }); } catch {}
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [recapDue]);
   useEffect(() => {
     if (!supabase) return;
     supabase.auth.getSession().then(({ data }) => setSession(data.session));
@@ -536,6 +545,15 @@ export default function MacroTrackerApp() {
     setState(s => ({ ...s, profiles: s.profiles.map(p => p.id === s.activeProfileId ? { ...p, customKcal: kcal } : p) }));
     showToast(`${tr("w.appliedPre")}${kcal} ${tr("w.perDay")}`);
   }
+  function seenRecap(goProgres: boolean) {
+    const t = today();
+    try { localStorage.setItem("macrolens-recap-seen", t); } catch {}
+    setRecapSeen(t);
+    if (goProgres) setTab("progres");
+  }
+  function enableRecapNotif() {
+    try { if (typeof Notification !== "undefined" && Notification.requestPermission) Notification.requestPermission(); } catch {}
+  }
   function shareRecap() {
     const parts = [
       tr("recap.shareText"),
@@ -693,6 +711,7 @@ export default function MacroTrackerApp() {
     <nav className="tabs">{(["dashboard","profil","journal","catalogue","recettes","programme","courses","placard","poids","effort","progres","sauvegarde"] as Tab[]).map(t => <button key={t} className={`tab ${tab===t?"active":""}`} onClick={()=>setTab(t)}>{tr("tab."+t)}</button>)}<button className="theme-toggle" onClick={toggleTheme} aria-label="Basculer le thème clair/sombre">{theme === "dark" ? tr("theme.light") : tr("theme.dark")}</button></nav>
 
     {tab === "dashboard" && <section className="grid">
+      {recapDue && <div className="card span-12" style={{background:"linear-gradient(135deg,#eef8e9,#fffaf0)",borderColor:"#d8e9cc"}}><div className="space" style={{flexWrap:"wrap",gap:8}}><span style={{fontWeight:900}}>📊 {tr("recap.nudge")}</span><div className="row" style={{gap:8}}><button className="btn" onClick={()=>seenRecap(true)}>{tr("recap.nudgeSee")}</button><button className="btn secondary" onClick={enableRecapNotif}>{tr("recap.enableNotif")}</button><button className="btn secondary" onClick={()=>seenRecap(false)}>{tr("recap.later")}</button></div></div></div>}
       {!activeProfile && <div className="card span-12 onboarding-card"><h2>{tr("onboarding.welcome")}</h2><p className="muted">{tr("onboarding.text")}</p><div className="row" style={{marginTop:8}}><button className="btn" onClick={()=>setTab("profil")}>{tr("onboarding.createProfile")}</button><button className="btn secondary" onClick={()=>setSnapOpen(true)}>{tr("onboarding.trySnap")}</button></div></div>}
       <div className="card span-4 chart-card clickable-nav" onClick={()=>setTab("journal")} role="button" tabIndex={0}><h3>{tr("dash.calories")} <button type="button" className="info-link" onClick={(e)=>{e.stopPropagation(); setKcalInfoOpen(true);}} aria-label="Comment les calories du jour sont calculées">ⓘ</button></h3><ProgressRing value={totals.kcal} max={targets?.kcal || 0} color="var(--primary-2)" top={`${totals.kcal}`} bottom={targets ? `/ ${targets.kcal}` : "kcal"} /><span className="chart-foot">{targets ? `${Math.max(0, targets.kcal - totals.kcal)} kcal restantes` : "Crée un profil pour ta cible"}</span></div>
       <div className="card span-4 chart-card clickable-nav" onClick={()=>setTab("journal")} role="button" tabIndex={0}><h3>{tr("dash.macros")}</h3><MacroPie protein={totals.protein} carbs={totals.carbs} fat={totals.fat} /><div className="macro-legend"><button type="button" onClick={(e)=>{e.stopPropagation(); setMacroInfo("protein");}}><i className="legend-dot" style={{background:"#2f6b2f"}} />P {totals.protein}g <span className="info-i">i</span></button><button type="button" onClick={(e)=>{e.stopPropagation(); setMacroInfo("carbs");}}><i className="legend-dot" style={{background:"#f3a52c"}} />G {totals.carbs}g <span className="info-i">i</span></button><button type="button" onClick={(e)=>{e.stopPropagation(); setMacroInfo("fat");}}><i className="legend-dot" style={{background:"#8a6bd1"}} />L {totals.fat}g <span className="info-i">i</span></button></div><span className="chart-foot">🌾 Fibres {totals.fiber}{targets ? ` / ${targets.fiber}` : ""} g</span></div>
