@@ -5,7 +5,7 @@ import type { Session } from "@supabase/supabase-js";
 import { ensureCiqualLoaded, estimateServingGrams, findFood, foods, formatQuantity, isPieceInput, quantityToNutritionGrams, searchFoods, STORES } from "@/lib/food-engine";
 import { adaptiveTDEE, average7, calculateTargets, effortFueling, logMacros, recipeMacros, sumIngredients, tdeeHistory, trainingZones, weeklyRecap, weightTrendRecommendation, weightTrendPerWeek, type EffortIntensity } from "@/lib/nutrition";
 import { makeT, LANGS, type Lang } from "@/lib/i18n";
-import { TRAINING_METHODS, MEASURE_TOOLS, GOAL_SESSIONS, COMMON_MISTAKES, WEEK_PLAN, ENERGY_CONTRIB, ENERGY_RECOVERY, ENERGY_PRINCIPLES, bi } from "@/lib/training";
+import { TRAINING_METHODS, MEASURE_TOOLS, GOAL_SESSIONS, COMMON_MISTAKES, ENERGY_CONTRIB, ENERGY_RECOVERY, ENERGY_PRINCIPLES, bi } from "@/lib/training";
 import { buildShoppingList, generateProgram, scoreProgram } from "@/lib/planner";
 import { seedRecipes } from "@/data/recipes";
 import { createBrowserSupabaseClient } from "@/lib/supabase";
@@ -189,6 +189,8 @@ export default function MacroTrackerApp() {
   const [effortSport, setEffortSport] = useState("run");
   const [effortRestHr, setEffortRestHr] = useState(0);
   const [effortQuality, setEffortQuality] = useState("aero");
+  const [methodFil, setMethodFil] = useState("");
+  const [methodOpen, setMethodOpen] = useState(-1);
   const [recapSeen, setRecapSeen] = useState<string | null>(null);
   const [recapChecked, setRecapChecked] = useState(false);
   const [syncStatus, setSyncStatus] = useState("");
@@ -815,11 +817,13 @@ export default function MacroTrackerApp() {
         <p className="form-help" style={{opacity:0.7}}>{tr("eff.coldSrc")}</p>
       </div>
       <div className="card span-12"><h2>{tr("eff.sleepTitle")}</h2><p>{tr("eff.sleepTarget")}</p><p className="muted">{tr("eff.sleepNutri")}</p><p className="muted">{tr("eff.sleepHydra")}</p><p className="notice">{tr("eff.sleepWarn")}</p><p className="form-help" style={{opacity:0.7}}>{tr("eff.sleepSrc")}</p></div>
-      <div className="card span-12"><h2>{tr("eff.mTitle")}</h2><div className="scroll"><table className="table"><thead><tr><th>{tr("eff.mFilCol")}</th><th>{tr("eff.mObj")}</th><th>{tr("eff.mMeth")}</th><th>{tr("eff.mEx")}</th><th>{tr("eff.mInt")}</th><th>{tr("eff.mRec")}</th></tr></thead><tbody>{TRAINING_METHODS.map((r,i)=><tr key={i}><td><strong>{bi(r.fil,lang)}</strong></td><td>{bi(r.obj,lang)}</td><td>{bi(r.meth,lang)}</td><td>{bi(r.ex,lang)}</td><td>{bi(r.intensite,lang)}</td><td>{bi(r.recup,lang)}</td></tr>)}</tbody></table></div></div>
+      <div className="card span-12"><h2>{tr("eff.mTitle")}</h2><p className="muted">{tr("eff.mPickHint")}</p>
+        <div className="row" style={{flexWrap:"wrap",gap:8}}>{Array.from(new Set(TRAINING_METHODS.map(m=>m.fil.fr))).map(f=>{const row=TRAINING_METHODS.find(m=>m.fil.fr===f); const label=row?bi(row.fil,lang):f; return <button key={f} type="button" className={`filter-chip ${methodFil===f?"active":""}`} onClick={()=>{setMethodFil(methodFil===f?"":f);setMethodOpen(-1);}}>{label}</button>;})}</div>
+        {methodFil && <div className="list" style={{marginTop:10}}>{TRAINING_METHODS.filter(m=>m.fil.fr===methodFil).map((m,i)=><div className="item" key={i} style={{cursor:"pointer"}} onClick={()=>setMethodOpen(methodOpen===i?-1:i)}><div className="space"><strong>{bi(m.obj,lang)}</strong><span className="muted">{methodOpen===i?"−":"+"}</span></div>{methodOpen===i && <div style={{marginTop:6}}><p><strong>{tr("eff.mMeth")} :</strong> {bi(m.meth,lang)}</p><p><strong>{tr("eff.mEx")} :</strong> {bi(m.ex,lang)}</p><p><strong>{tr("eff.mInt")} :</strong> {bi(m.intensite,lang)}</p><p><strong>{tr("eff.mRec")} :</strong> {bi(m.recup,lang)}</p></div>}</div>)}</div>}
+      </div>
       <div className="card span-6"><h2>{tr("eff.goalTitle")}</h2><p className="muted">{tr("eff.goalTapHint")}</p><div className="scroll"><table className="table"><thead><tr><th>{tr("eff.goalCol")}</th><th>{tr("eff.goalFil")}</th><th>{tr("eff.goalSes")}</th></tr></thead><tbody>{GOAL_SESSIONS.map((r,i)=><tr key={i} onClick={()=>applyGoal(r)} style={{cursor:"pointer"}} title={tr("eff.goalTapHint")}><td><strong>{bi(r.goal,lang)}</strong></td><td>{bi(r.fil,lang)}</td><td>{bi(r.session,lang)}</td></tr>)}</tbody></table></div></div>
       <div className="card span-6"><h2>{tr("eff.toolTitle")}</h2><div className="scroll"><table className="table"><thead><tr><th>{tr("eff.toolCol")}</th><th>{tr("eff.toolRepl")}</th><th>{tr("eff.toolUse")}</th></tr></thead><tbody>{MEASURE_TOOLS.map((r,i)=><tr key={i}><td><strong>{bi(r.tool,lang)}</strong></td><td>{bi(r.repl,lang)}</td><td>{bi(r.use,lang)}</td></tr>)}</tbody></table></div></div>
       <div className="card span-6"><h2>{tr("eff.mistTitle")}</h2><div className="scroll"><table className="table"><thead><tr><th>{tr("eff.mistErr")}</th><th>{tr("eff.mistWhy")}</th><th>{tr("eff.mistFix")}</th></tr></thead><tbody>{COMMON_MISTAKES.map((r,i)=><tr key={i}><td><strong>{bi(r.err,lang)}</strong></td><td>{bi(r.why,lang)}</td><td>{bi(r.fix,lang)}</td></tr>)}</tbody></table></div></div>
-      <div className="card span-6"><h2>{tr("eff.weekTitle")}</h2><div className="scroll"><table className="table"><thead><tr><th>{tr("eff.weekDay")}</th><th>{tr("eff.weekSes")}</th><th>{tr("eff.weekFil")}</th></tr></thead><tbody>{WEEK_PLAN.map((r,i)=><tr key={i}><td><strong>{bi(r.day,lang)}</strong></td><td>{bi(r.session,lang)}</td><td>{bi(r.fil,lang)}</td></tr>)}</tbody></table></div></div>
       <div className="card span-12"><h2>{tr("eff.bioTitle")}</h2>
         <p className="muted" style={{marginTop:4}}><strong>{tr("eff.bioContrib")}</strong></p>
         <div className="scroll"><table className="table"><thead><tr><th>{tr("eff.bioDist")}</th><th>PCr</th><th>{tr("eff.q_lac_name")}</th><th>{tr("eff.q_aero_name")}</th><th></th></tr></thead><tbody>{ENERGY_CONTRIB.map((r,i)=><tr key={i}><td><strong>{r.dist}</strong></td><td>{r.pcr}</td><td>{r.ana}</td><td>{r.aero}</td><td>{bi(r.note,lang)}</td></tr>)}</tbody></table></div>
