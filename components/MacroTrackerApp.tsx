@@ -191,6 +191,10 @@ export default function MacroTrackerApp() {
   const [effortQuality, setEffortQuality] = useState("aero");
   const [methodFil, setMethodFil] = useState("");
   const [methodOpen, setMethodOpen] = useState(-1);
+  const [qDetails, setQDetails] = useState(false);
+  const [bioDistIdx, setBioDistIdx] = useState(0);
+  const [bioRecovOpen, setBioRecovOpen] = useState(false);
+  const [bioPrincOpen, setBioPrincOpen] = useState(false);
   const [recapSeen, setRecapSeen] = useState<string | null>(null);
   const [recapChecked, setRecapChecked] = useState(false);
   const [syncStatus, setSyncStatus] = useState("");
@@ -776,18 +780,21 @@ export default function MacroTrackerApp() {
         </>}</div>
       </div>
       <div className="card span-12"><h2>{tr("eff.qTitle")}</h2>
-        <div style={{maxWidth:340}}><label>{tr("eff.qPick")}</label><select value={effortQuality} onChange={e=>setEffortQuality(e.target.value)}><option value="aero">{tr("eff.q_aero_name")}</option><option value="vma">{tr("eff.q_vma_name")}</option><option value="lac">{tr("eff.q_lac_name")}</option><option value="alac">{tr("eff.q_alac_name")}</option></select></div>
-        <p style={{marginTop:8}}><strong>{tr("eff.qFil")} :</strong> {tr("eff.q_"+effortQuality+"_fil")}</p>
+        <div className="row" style={{flexWrap:"wrap",gap:8}}>{["aero","vma","lac","alac"].map(q=><button key={q} type="button" className={`filter-chip ${effortQuality===q?"active":""}`} onClick={()=>{setEffortQuality(q);setQDetails(false);}}>{tr("eff.q_"+q+"_name")}</button>)}</div>
+        <p style={{marginTop:10}}><strong>{tr("eff.qFil")} :</strong> {tr("eff.q_"+effortQuality+"_fil")}</p>
         <p><strong>{tr("eff.qHow")} :</strong> {tr("eff.q_"+effortQuality+"_how")}</p>
-        <p><strong>{tr("eff.qPow")} :</strong> {tr("eff.q_"+effortQuality+"_pow")}</p>
         <p><strong>{tr("eff.qDur")} :</strong> {tr("eff.q_"+effortQuality+"_dur")}</p>
         <p><strong>{tr("eff.qInt")} :</strong> {tr("eff.q_"+effortQuality+"_int")}</p>
-        <p><strong>{tr("eff.qRec")} :</strong> {tr("eff.q_"+effortQuality+"_rec")}</p>
-        <p><strong>{tr("eff.qRecov")} :</strong> {tr("eff.q_"+effortQuality+"_recov")}</p>
         <p><strong>{tr("eff.qEx")} :</strong> {tr("eff.q_"+effortQuality+"_ex")}</p>
-        <p><strong>{tr("eff.qLim")} :</strong> {tr("eff.q_"+effortQuality+"_lim")}</p>
-        <p><strong>{tr("eff.qAdapt")} :</strong> {tr("eff.q_"+effortQuality+"_adapt")}</p>
         <p className="notice"><strong>{tr("eff.qNut")} :</strong> {tr("eff.q_"+effortQuality+"_nut")}</p>
+        <button className="btn secondary" style={{marginTop:4}} onClick={()=>setQDetails(!qDetails)}>{qDetails ? tr("eff.qLess") : tr("eff.qMore")}</button>
+        {qDetails && <div style={{marginTop:8}}>
+          <p><strong>{tr("eff.qPow")} :</strong> {tr("eff.q_"+effortQuality+"_pow")}</p>
+          <p><strong>{tr("eff.qRec")} :</strong> {tr("eff.q_"+effortQuality+"_rec")}</p>
+          <p><strong>{tr("eff.qRecov")} :</strong> {tr("eff.q_"+effortQuality+"_recov")}</p>
+          <p><strong>{tr("eff.qLim")} :</strong> {tr("eff.q_"+effortQuality+"_lim")}</p>
+          <p><strong>{tr("eff.qAdapt")} :</strong> {tr("eff.q_"+effortQuality+"_adapt")}</p>
+        </div>}
         <p className="form-help" style={{opacity:0.7}}>{tr("eff.qSrc")}</p>
       </div>
       <div className="card span-8"><h2>{tr("eff.during")} · {effortFuel.hours} h</h2>
@@ -826,13 +833,15 @@ export default function MacroTrackerApp() {
       <div className="card span-6"><h2>{tr("eff.mistTitle")}</h2><div className="scroll"><table className="table"><thead><tr><th>{tr("eff.mistErr")}</th><th>{tr("eff.mistWhy")}</th><th>{tr("eff.mistFix")}</th></tr></thead><tbody>{COMMON_MISTAKES.map((r,i)=><tr key={i}><td><strong>{bi(r.err,lang)}</strong></td><td>{bi(r.why,lang)}</td><td>{bi(r.fix,lang)}</td></tr>)}</tbody></table></div></div>
       <div className="card span-12"><h2>{tr("eff.bioTitle")}</h2>
         <p className="muted" style={{marginTop:4}}><strong>{tr("eff.bioContrib")}</strong></p>
-        <div className="scroll"><table className="table"><thead><tr><th>{tr("eff.bioDist")}</th><th>PCr</th><th>{tr("eff.q_lac_name")}</th><th>{tr("eff.q_aero_name")}</th><th></th></tr></thead><tbody>{ENERGY_CONTRIB.map((r,i)=><tr key={i}><td><strong>{r.dist}</strong></td><td>{r.pcr}</td><td>{r.ana}</td><td>{r.aero}</td><td>{bi(r.note,lang)}</td></tr>)}</tbody></table></div>
+        <div className="row" style={{flexWrap:"wrap",gap:8}}>{ENERGY_CONTRIB.map((r,i)=><button key={i} type="button" className={`filter-chip ${bioDistIdx===i?"active":""}`} onClick={()=>setBioDistIdx(i)}>{r.dist}</button>)}</div>
+        {(() => { const r = ENERGY_CONTRIB[bioDistIdx]; return <div className="target-panel" style={{gridTemplateColumns:"repeat(3,minmax(0,1fr))",marginTop:10}}><div><span>PCr</span><strong>{r.pcr}</strong></div><div><span>{tr("eff.q_lac_name")}</span><strong>{r.ana}</strong></div><div><span>{tr("eff.q_aero_name")}</span><strong>{r.aero}</strong></div></div>; })()}
+        {ENERGY_CONTRIB[bioDistIdx].note.fr && <p className="form-help">{bi(ENERGY_CONTRIB[bioDistIdx].note,lang)}</p>}
         <p className="form-help" style={{opacity:0.7}}>{tr("eff.bioNote")}</p>
-        <p className="muted" style={{marginTop:10}}><strong>{tr("eff.bioRecovery")}</strong></p>
-        {ENERGY_RECOVERY.map((t,i)=><p className="form-help" key={i}>• {bi(t,lang)}</p>)}
-        <p className="notice" style={{marginTop:10}}><strong>{tr("eff.bioPrinciples")}</strong></p>
-        {ENERGY_PRINCIPLES.map((t,i)=><p className="form-help" key={i}>✅ {bi(t,lang)}</p>)}
-        <p className="form-help" style={{opacity:0.7}}>{tr("eff.bioSrc")}</p>
+        <button className="btn secondary" style={{marginTop:6}} onClick={()=>setBioRecovOpen(!bioRecovOpen)}>{tr("eff.bioRecovery")}</button>
+        {bioRecovOpen && <div style={{marginTop:6}}>{ENERGY_RECOVERY.map((t,i)=><p className="form-help" key={i}>• {bi(t,lang)}</p>)}</div>}
+        <button className="btn secondary" style={{marginTop:6,marginLeft:8}} onClick={()=>setBioPrincOpen(!bioPrincOpen)}>{tr("eff.bioPrinciples")}</button>
+        {bioPrincOpen && <div className="notice" style={{marginTop:6}}>{ENERGY_PRINCIPLES.map((t,i)=><p className="form-help" key={i}>{bi(t,lang)}</p>)}</div>}
+        <p className="form-help" style={{opacity:0.7,marginTop:8}}>{tr("eff.bioSrc")}</p>
       </div>
       <div className="card span-12"><p className="form-help">{tr("eff.vitamins")}</p><p className="form-help">{tr("eff.disclaimer")}</p></div>
     </section>}
