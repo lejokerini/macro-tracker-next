@@ -1,0 +1,178 @@
+/* Carte de visite digitale : identité du site de coaching (bleu marine, rouge, papier). */
+.page {
+  --navy: #13213b;
+  --red: #d3302a;
+  --paper: #f3f5f7;
+  --ink: #13213b;
+  --muted: #5b6577;
+  --line: #dfe3ea;
+  position: relative;
+  z-index: 1;
+  min-height: 100vh;
+  min-height: 100dvh;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: "Archivo", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  padding: max(16px, env(safe-area-inset-top)) 16px max(24px, env(safe-area-inset-bottom));
+  display: flex;
+  justify-content: center;
+}
+
+.card {
+  width: 100%;
+  max-width: 440px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.head {
+  background: var(--navy);
+  color: #fff;
+  border-radius: 20px;
+  padding: 28px 22px 24px;
+  position: relative;
+  overflow: hidden;
+}
+.head::after {
+  /* Bande rouge, rappel du site */
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 6px;
+  background: var(--red);
+}
+
+.monogram {
+  width: 64px;
+  height: 64px;
+  border: 3px solid var(--red);
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  font-weight: 900;
+  font-size: 24px;
+  letter-spacing: -0.04em;
+  margin-bottom: 18px;
+}
+
+.name {
+  margin: 0;
+  font-size: 34px;
+  line-height: 1;
+  letter-spacing: -0.04em;
+  font-weight: 900;
+}
+
+.title {
+  margin: 8px 0 0;
+  font-size: 15px;
+  color: rgba(255, 255, 255, 0.78);
+}
+
+.specialties {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.specialties li {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 7px 12px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.save {
+  display: block;
+  text-align: center;
+  background: var(--red);
+  color: #fff;
+  text-decoration: none;
+  font-weight: 900;
+  font-size: 17px;
+  border-radius: 14px;
+  padding: 16px;
+}
+.save:hover { filter: brightness(1.06); }
+
+.actions {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+.actions a,
+.shareBtn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 12px 4px;
+  color: var(--navy);
+  text-decoration: none;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+}
+.actions a:hover,
+.shareBtn:hover { border-color: var(--navy); }
+.icon,
+.shareBtn span { font-size: 20px; line-height: 1; }
+
+.block {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 16px 18px;
+}
+.block h2 {
+  margin: 0 0 6px;
+  font-size: 15px;
+  font-weight: 900;
+}
+.block p { margin: 0; font-size: 15px; line-height: 1.45; }
+.block .small { margin-top: 8px; font-size: 13px; color: var(--muted); }
+
+.link {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--navy);
+  border-radius: 12px;
+  padding: 14px 16px;
+  color: var(--ink);
+  text-decoration: none;
+}
+.link strong { font-size: 15px; }
+.link span { font-size: 13px; color: var(--muted); }
+.link:hover { border-left-color: var(--red); }
+
+.foot {
+  text-align: center;
+  font-size: 12px;
+  padding-top: 6px;
+}
+.foot a { color: var(--muted); }
+
+.page a:focus-visible,
+.page button:focus-visible {
+  outline: 3px solid var(--red);
+  outline-offset: 2px;
+}
+
+@media (max-width: 360px) {
+  .actions { grid-template-columns: repeat(2, 1fr); }
+  .name { font-size: 30px; }
+}
