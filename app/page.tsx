@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { COACH, coachWhatsAppLink } from "@/lib/coach";
 
 export const metadata: Metadata = {
   title: "Macrolens · Compteur de calories & macros en photo",
@@ -194,6 +195,44 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* Le coach derrière l'app */}
+      <section className="lp-section" aria-labelledby="lp-coach-title">
+        <div className="lp-coach-card">
+          <div className="lp-coach-mark" aria-hidden>
+            LC
+          </div>
+          <div className="lp-coach-copy">
+            <h2 id="lp-coach-title">Créée par Lilian Cattani, coach sportif</h2>
+            <p>
+              Macrolens est développée par Lilian Cattani, diplômé d&apos;une licence STAPS
+              Entraînement sportif (Université de Toulon) et titulaire de la carte
+              professionnelle d&apos;éducateur sportif.
+            </p>
+            <p>
+              Ses programmes de musculation et de nutrition (prise de masse, sèche, remise
+              en forme, préparation physique aux sports de combat) utilisent les mêmes
+              calculs que l&apos;app : il suffit de choisir ton programme dans ton profil.
+              Coaching en salle autour de Hyères et Toulon, ou en visio.
+            </p>
+            <div className="lp-cta-row">
+              <a
+                className="lp-btn lp-btn-primary"
+                href={coachWhatsAppLink("Bonjour Lilian, j'ai découvert Macrolens et j'aimerais en savoir plus sur votre coaching.")}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Parler de mon objectif sur WhatsApp
+              </a>
+              {COACH.siteUrl && (
+                <a className="lp-btn lp-btn-ghost" href={COACH.siteUrl} target="_blank" rel="noopener noreferrer">
+                  Voir ses programmes
+                </a>
+              )}
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Appel à l'action final */}
       <section className="lp-final">
         <h2>Prêt à essayer ?</h2>
@@ -217,6 +256,7 @@ export default function LandingPage() {
         <nav className="lp-footer-links">
           <Link href="/app">Application</Link>
           <Link href="/confidentialite">Confidentialité</Link>
+          <Link href="/mentions-legales">Mentions légales</Link>
           <a href="mailto:contact.macrolens@gmail.com">Contact</a>
         </nav>
         <p className="lp-footer-copy">

@@ -9,12 +9,16 @@ export default function ConfidentialitePage() {
   return (
     <main className="app legal">
       <h1>Politique de confidentialité</h1>
-      <p className="muted">Application : <strong>Macrolens</strong> · Dernière mise à jour : 1er juillet 2026</p>
+      <p className="muted">Application : <strong>Macrolens</strong> · Dernière mise à jour : 10 novembre 2026</p>
 
       <p>
         Macrolens est une application de suivi nutritionnel (calories, macronutriments, poids). Cette page explique
         quelles données l&apos;application traite, pourquoi, et quels sont tes droits. Nous appliquons un principe de
         minimisation : nous ne collectons que ce qui est nécessaire au fonctionnement de l&apos;app.
+      </p>
+      <p>
+        Responsable du traitement : <strong>Lilian Cattani</strong>, entrepreneur individuel, éditeur de Macrolens
+        (coordonnées complètes dans les <a href="/mentions-legales">mentions légales</a>).
       </p>
 
       <h2>1. Données traitées</h2>
@@ -82,15 +86,17 @@ export default function ConfidentialitePage() {
 
       <h2>9. Suppression du compte et des données</h2>
       <p>
-        Depuis l&apos;onglet « Mon compte », tu peux te déconnecter et réinitialiser tes données locales. Pour supprimer
-        définitivement ton compte cloud et toutes les données associées, contacte-nous à l&apos;adresse ci-dessous ; la
-        demande est traitée dans les meilleurs délais.
+        Depuis l&apos;onglet « Mon compte », tu peux te déconnecter et réinitialiser tes données locales. Le bouton
+        « Supprimer mon compte et mes données » efface définitivement ton compte cloud et toutes les données associées.
+        Tu peux aussi nous le demander à l&apos;adresse ci-dessous ; la demande est traitée dans les meilleurs délais.
       </p>
 
       <h2>10. Sécurité</h2>
       <p>
         Les échanges se font en HTTPS, les clés d&apos;accès aux services d&apos;analyse restent côté serveur, et
-        l&apos;accès à tes données cloud est restreint à ton seul compte. Aucun système n&apos;est infaillible, mais nous
+        l&apos;accès à tes données cloud est restreint à ton seul compte. Pour éviter les abus, le nombre d&apos;analyses
+        photo est limité par connexion : l&apos;adresse IP sert uniquement à ce comptage, reste en mémoire 24 h au plus
+        après ta dernière analyse et n&apos;est jamais enregistrée. Aucun système n&apos;est infaillible, mais nous
         appliquons des mesures raisonnables pour protéger tes informations.
       </p>
 

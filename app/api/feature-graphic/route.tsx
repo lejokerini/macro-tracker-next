@@ -1,6 +1,6 @@
 import { ImageResponse } from "next/og";
 
-export const runtime = "edge";
+export const runtime = "nodejs";
 
 // Image de mise en avant Play Store (feature graphic) : 1024 x 500.
 // À télécharger sur https://<domaine>/api/feature-graphic puis à uploader dans la Play Console.

@@ -1,6 +1,6 @@
 import { ImageResponse } from "next/og";
 
-export const runtime = "edge";
+export const runtime = "nodejs";
 
 // Icône Macrolens générée au build : objectif/assiette + couverts + déclencheur orange.
 // Pleine page (sans coins arrondis) pour rester correcte en version "maskable".

@@ -1,6 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { NextResponse } from "next/server";
 import type { ScanItem } from "@/lib/calsnap";
+import { clientKey, createRateLimiter, retryMessage } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
@@ -156,6 +157,13 @@ function sameOriginOnly(req: Request): boolean {
   }
 }
 
+// Garde-fou côté serveur, par connexion : 10 analyses / 10 min et 60 / jour.
+// (L'app limite déjà à 5 / jour en gratuit et 50 / jour en Premium.)
+const scanLimiter = createRateLimiter([
+  { limit: 10, windowMs: 10 * 60_000 },
+  { limit: 60, windowMs: 24 * 60 * 60_000 },
+]);
+
 export async function POST(req: Request) {
   if (!sameOriginOnly(req)) {
     return NextResponse.json({ error: "Requête non autorisée." }, { status: 403 });
@@ -164,6 +172,13 @@ export async function POST(req: Request) {
   const anthropicKey = process.env.ANTHROPIC_API_KEY?.trim();
   if (!geminiKey && !anthropicKey) {
     return NextResponse.json({ error: "Aucune clé d'analyse configurée. Ajoute GEMINI_API_KEY (gratuit) ou ANTHROPIC_API_KEY dans Vercel." }, { status: 500 });
+  }
+  const limit = scanLimiter(clientKey(req));
+  if (!limit.ok) {
+    return NextResponse.json(
+      { error: retryMessage(limit.retryAfterSec) },
+      { status: 429, headers: { "Retry-After": String(limit.retryAfterSec) } },
+    );
   }
 
   let image: ImageInput = null;

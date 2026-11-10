@@ -1,5 +1,7 @@
 export type DietType = "omnivore" | "flexitarien" | "pescetarien" | "vegetarien" | "vegan" | "sans_porc";
 export type GoalType = "perte" | "seche" | "maintien" | "prise_masse";
+// Programmes de Lilian Cattani (coach sportif) : masse, sèche, remise en forme, prépa combat.
+export type CoachProgram = "masse" | "seche" | "forme" | "combat";
 export type Store = "leclerc" | "intermarche" | "carrefour" | "auchan" | "lidl" | "aldi" | "monoprix";
 export type MealType = "Petit-déjeuner" | "Déjeuner" | "Dîner" | "Collation";
 
@@ -44,6 +46,7 @@ export type Profile = {
   bodyFatPct?: number;
   activity: number;
   goal: GoalType;
+  coachProgram?: CoachProgram; // programme suivi : calories et macros calculées comme dans le carnet de suivi
   proteinPerKg?: number;
   customBmr?: number;   // métabolisme de base fourni par l'utilisateur (kcal), sinon calculé
   customKcal?: number;  // calories/jour fixées manuellement (prime sur le calcul)

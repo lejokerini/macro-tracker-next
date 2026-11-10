@@ -1,7 +1,70 @@
 import { findFood } from "@/lib/food-engine";
-import type { MealLogItem, Profile, Recipe, RecipeIngredient, Targets, WeightLog } from "@/lib/types";
+import type { CoachProgram, GoalType, MealLogItem, Profile, Recipe, RecipeIngredient, Targets, WeightLog } from "@/lib/types";
+
+// ---------------------------------------------------------------------------
+// Programmes de Lilian Cattani : mêmes règles que son carnet de suivi (Excel),
+// pour que l'app affiche exactement les calories et les macros du programme.
+// - Métabolisme de base : Mifflin-St Jeor (arrondi à l'unité).
+// - Maintien = métabolisme × activité, arrondi à 10 kcal.
+// - Calories = maintien ajusté selon le programme, arrondi à 50 kcal,
+//   jamais sous 1 500 kcal (homme) / 1 200 kcal (femme).
+// - Protéines et lipides en g/kg de poids (arrondis à 5 g), lipides ≥ 20 % des
+//   calories ; glucides = le reste.
+// - Zone de variation de poids visée par semaine (en % du poids) : hors zone deux
+//   semaines de suite → ±150 kcal par jour.
+// ---------------------------------------------------------------------------
+export const COACH_PROGRAMS: Record<CoachProgram, {
+  goal: GoalType; kcalPct: number; surplusMale: number; surplusFemale: number;
+  proteinPerKg: number; fatPerKg: number; weeklyMinPct: number; weeklyMaxPct: number;
+}> = {
+  masse:  { goal: "prise_masse", kcalPct: 0,     surplusMale: 250, surplusFemale: 150, proteinPerKg: 2.1, fatPerKg: 1.0,  weeklyMinPct: 0.25,  weeklyMaxPct: 0.5 },
+  seche:  { goal: "seche",       kcalPct: -0.18, surplusMale: 0,   surplusFemale: 0,   proteinPerKg: 2.1, fatPerKg: 0.75, weeklyMinPct: -1,    weeklyMaxPct: -0.5 },
+  forme:  { goal: "perte",       kcalPct: -0.10, surplusMale: 0,   surplusFemale: 0,   proteinPerKg: 1.8, fatPerKg: 0.9,  weeklyMinPct: -0.75, weeklyMaxPct: -0.25 },
+  combat: { goal: "maintien",    kcalPct: 0,     surplusMale: 0,   surplusFemale: 0,   proteinPerKg: 1.8, fatPerKg: 0.9,  weeklyMinPct: -0.25, weeklyMaxPct: 0.25 },
+};
+
+export function isCoachProgram(value: unknown): value is CoachProgram {
+  return typeof value === "string" && Object.prototype.hasOwnProperty.call(COACH_PROGRAMS, value);
+}
+
+// Arrondi comme Excel (moitié vers le haut, sur 15 chiffres significatifs) :
+// évite qu'une erreur de virgule flottante donne un résultat différent du carnet.
+function roundLikeExcel(x: number, step = 1) {
+  const v = Number((x / step).toPrecision(15));
+  return Math.sign(v) * Math.round(Math.abs(v)) * step;
+}
+
+export function coachMaintenance(profile: Profile) {
+  const mifflin = 10 * profile.weightKg + 6.25 * profile.heightCm - 5 * profile.age + (profile.sex === "homme" ? 5 : -161);
+  const bmr = profile.customBmr && profile.customBmr > 0 ? profile.customBmr : roundLikeExcel(mifflin);
+  return roundLikeExcel(bmr * profile.activity, 10);
+}
+
+export function coachTargets(profile: Profile, program: CoachProgram): Targets {
+  const rules = COACH_PROGRAMS[program];
+  const male = profile.sex === "homme";
+  const floor = male ? 1500 : 1200;
+  const planned = coachMaintenance(profile) * (1 + rules.kcalPct) + (male ? rules.surplusMale : rules.surplusFemale);
+  // Calories fixées à la main : respectées (à 10 kcal près), plancher de sécurité compris.
+  const kcal = profile.customKcal && profile.customKcal > 0
+    ? Math.max(floor, roundLikeExcel(profile.customKcal, 10))
+    : Math.max(floor, roundLikeExcel(planned, 50));
+  const proteinPerKg = profile.proteinPerKg && profile.proteinPerKg > 0 ? profile.proteinPerKg : rules.proteinPerKg;
+  const protein = roundLikeExcel(proteinPerKg * profile.weightKg, 5);
+  const fat = roundLikeExcel(Math.max(rules.fatPerKg * profile.weightKg, (0.2 * kcal) / 9), 5);
+  const carbs = Math.max(0, roundLikeExcel((kcal - protein * 4 - fat * 9) / 4, 5));
+  const fiber = Math.round((kcal / 1000) * 14);
+  return { kcal, protein, carbs, fat, fiber };
+}
+
+// Maintien théorique, sans objectif ni calories imposées (sert de référence au TDEE réel).
+export function theoreticalMaintenance(profile: Profile) {
+  if (isCoachProgram(profile.coachProgram)) return coachMaintenance(profile);
+  return calculateTargets({ ...profile, goal: "maintien", customKcal: undefined, coachProgram: undefined }).kcal;
+}
 
 export function calculateTargets(profile: Profile): Targets {
+  if (isCoachProgram(profile.coachProgram)) return coachTargets(profile, profile.coachProgram);
   // Masse maigre (LBM) si la masse grasse est renseignée et plausible.
   const bf = profile.bodyFatPct && profile.bodyFatPct > 3 && profile.bodyFatPct < 60 ? profile.bodyFatPct : undefined;
   const lbm = bf ? profile.weightKg * (1 - bf / 100) : undefined;
@@ -227,6 +290,7 @@ export function weightTrendRecommendation(profile: Profile, weights: WeightLog[]
   const prev=sorted.slice(-14,-7), recent=sorted.slice(-7);
   const a=(x:WeightLog[])=>x.reduce((s,w)=>s+w.weightKg,0)/x.length;
   const delta=+(a(recent)-a(prev)).toFixed(2);
+  if (isCoachProgram(profile.coachProgram)) return coachTrendAdvice(profile.coachProgram, sorted, delta);
   if(profile.goal === "perte" || profile.goal === "seche") {
     if(delta > -0.1) return `Tendance ${delta} kg/semaine : perte trop lente, envisage -100 à -150 kcal/j.`;
     if(delta < -0.8) return `Tendance ${delta} kg/semaine : perte rapide, envisage +100 kcal/j.`;
@@ -238,4 +302,32 @@ export function weightTrendRecommendation(profile: Profile, weights: WeightLog[]
     return `Tendance ${delta} kg/semaine : prise de masse maîtrisée.`;
   }
   return `Tendance ${delta} kg/semaine : maintien à surveiller.`;
+}
+
+// Même règle que le bilan hebdomadaire du carnet : on compare la variation de la
+// moyenne des 7 dernières pesées à la zone du programme, et on n'ajuste les
+// calories (±150 kcal/j) qu'après deux semaines de suite hors zone.
+function coachTrendAdvice(program: CoachProgram, sorted: WeightLog[], delta: number) {
+  const zone = COACH_PROGRAMS[program];
+  const avg = (x: WeightLog[]) => x.reduce((s, w) => s + w.weightKg, 0) / x.length;
+  const fr = (n: number) => `${n > 0 ? "+" : ""}${String(n).replace(".", ",")}`;
+  const status = (from: WeightLog[], to: WeightLog[]) => {
+    const pct = ((avg(to) - avg(from)) / avg(from)) * 100;
+    return pct < zone.weeklyMinPct ? "sous" : pct > zone.weeklyMaxPct ? "dessus" : "ok";
+  };
+  const prev = sorted.slice(-14, -7), recent = sorted.slice(-7), older = sorted.slice(-21, -14);
+  const now = status(prev, recent);
+  const twice = older.length === 7 && status(older, prev) === now;
+  const pct = +(((avg(recent) - avg(prev)) / avg(prev)) * 100).toFixed(2);
+  const head = `Tendance ${fr(delta)} kg/semaine (${fr(pct)} %)`;
+  const zoneText = `zone du programme (${fr(zone.weeklyMinPct)} à ${fr(zone.weeklyMaxPct)} % par semaine)`;
+  if (now === "ok") return `${head} : dans la ${zoneText}. On ne change rien.`;
+  if (now === "sous") {
+    return twice
+      ? `${head} : sous la ${zoneText}, deux semaines de suite. Ajoute 150 kcal par jour, surtout en glucides.`
+      : `${head} : sous la ${zoneText}. Ne change rien pour l'instant ; si c'est encore le cas la semaine prochaine, ajoute 150 kcal par jour.`;
+  }
+  return twice
+    ? `${head} : au-dessus de la ${zoneText}, deux semaines de suite. Retire 150 kcal par jour, ou ajoute 2 000 pas.`
+    : `${head} : au-dessus de la ${zoneText}. Ne change rien pour l'instant ; si c'est encore le cas la semaine prochaine, retire 150 kcal par jour.`;
 }
