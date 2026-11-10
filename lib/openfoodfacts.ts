@@ -237,6 +237,8 @@ export async function searchOpenFoodFacts(query: string, pageSize = 12): Promise
 export async function fetchOpenFoodFactsByBarcode(barcode: string): Promise<Food | null> {
   const params = new URLSearchParams({ fields: OFF_FIELDS, lc: "fr" });
   const res = await fetch(`https://world.openfoodfacts.org/api/v2/product/${encodeURIComponent(barcode)}.json?${params.toString()}`);
+  // Produit inconnu : Open Food Facts répond 404 (status 0). Ce n'est pas une panne.
+  if (res.status === 404) return null;
   if (!res.ok) throw new Error(`Open Food Facts HTTP ${res.status}`);
   const data = await res.json() as { status?: number; product?: OpenFoodFactsProduct };
   if (!data.product || data.status === 0) return null;

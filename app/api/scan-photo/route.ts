@@ -6,8 +6,22 @@ import { clientKey, createRateLimiter, retryMessage } from "@/lib/rate-limit";
 export const runtime = "nodejs";
 export const maxDuration = 30;
 
-const ANTHROPIC_MODEL = "claude-sonnet-4-6";
-const GEMINI_MODEL = process.env.GEMINI_MODEL?.trim() || "gemini-2.5-flash";
+// Modèles d'analyse. Google et Anthropic retirent régulièrement leurs anciens
+// modèles : on essaie le modèle choisi (variable d'environnement), puis des
+// modèles récents, et on passe au suivant si l'un d'eux n'existe plus (404).
+// Pour changer de modèle sans toucher au code : GEMINI_MODEL / ANTHROPIC_MODEL dans Vercel.
+const GEMINI_MODELS = uniq([
+  process.env.GEMINI_MODEL,
+  "gemini-3.6-flash",
+  "gemini-flash-latest",
+  "gemini-3.5-flash",
+  "gemini-2.5-flash",
+]);
+const ANTHROPIC_MODELS = uniq([process.env.ANTHROPIC_MODEL, "claude-sonnet-5-5", "claude-haiku-5-5", "claude-sonnet-4-6"]);
+
+function uniq(list: (string | undefined)[]) {
+  return Array.from(new Set(list.map((m) => m?.trim()).filter((m): m is string => !!m)));
+}
 
 const ALLOWED_MEDIA = ["image/jpeg", "image/png", "image/webp", "image/gif"] as const;
 type AllowedMedia = (typeof ALLOWED_MEDIA)[number];
@@ -50,6 +64,50 @@ Pour un plat composé (burger, pizza, lasagnes, sandwich, wrap, plat en sauce, s
   if (opts.hint) p += `\nCorrection importante donnée par l'utilisateur, à respecter en priorité : « ${opts.hint} ».`;
   if (opts.text) p += `\nIndication de l'utilisateur sur le contenu : « ${opts.text} ».`;
   return `${p}\n${rules}`;
+}
+
+// Lecture du tableau nutritionnel d'un emballage (produit absent d'Open Food Facts).
+function buildLabelPrompt(lang: string) {
+  return `Tu lis l'étiquette d'un produit alimentaire en photo (tableau des valeurs nutritionnelles, et si visibles le nom et la marque).
+Recopie les valeurs POUR 100 g (ou 100 ml pour une boisson). Si le tableau ne donne que des valeurs par portion, convertis-les pour 100 g à partir du poids de la portion indiqué.
+N'invente rien : si une valeur n'est pas lisible, mets null. Si la photo ne montre pas de tableau nutritionnel lisible, renvoie {"label":null}.
+Réponds UNIQUEMENT avec du JSON valide, sans texte autour, exactement à ce format :
+{"label":{"name":"Yaourt grec nature","brand":"Marque","per":"100g","kcal":97,"protein":9,"carbs":4,"fat":5,"fiber":0,"sugars":4,"salt":0.1,"servingGrams":150}}
+Règles : "name" en ${langName(lang)} ; "per" = "100g" ou "100ml" ; "servingGrams" = poids d'une portion ou d'une unité si indiqué, sinon null ; nombres avec un point décimal.`;
+}
+
+type LabelValues = {
+  name: string; brand?: string; per: "100g" | "100ml";
+  kcal: number; protein: number; carbs: number; fat: number; fiber: number; sugars?: number; salt?: number; servingGrams?: number;
+};
+
+function optNum(v: unknown): number | undefined {
+  if (v === null || v === undefined || v === "") return undefined;
+  const x = num(v);
+  return x > 0 ? x : undefined;
+}
+
+function sanitizeLabel(parsed: unknown): LabelValues | null {
+  const r = (parsed as { label?: unknown })?.label as Record<string, unknown> | null | undefined;
+  if (!r || typeof r !== "object") return null;
+  const protein = num(r.protein), carbs = num(r.carbs), fat = num(r.fat);
+  let kcal = num(r.kcal);
+  if (!kcal && (protein || carbs || fat)) kcal = Math.round(protein * 4 + carbs * 4 + fat * 9);
+  // Valeurs impossibles pour 100 g : on préfère ne rien proposer.
+  if (!kcal || kcal > 950 || protein + carbs + fat > 105) return null;
+  return {
+    name: String(r.name ?? "").trim().slice(0, 80),
+    brand: String(r.brand ?? "").trim().slice(0, 60) || undefined,
+    per: r.per === "100ml" ? "100ml" : "100g",
+    kcal: Math.round(kcal),
+    protein: Math.round(protein * 10) / 10,
+    carbs: Math.round(carbs * 10) / 10,
+    fat: Math.round(fat * 10) / 10,
+    fiber: Math.round(num(r.fiber) * 10) / 10,
+    sugars: optNum(r.sugars),
+    salt: optNum(r.salt),
+    servingGrams: optNum(r.servingGrams) ? Math.round(optNum(r.servingGrams)!) : undefined,
+  };
 }
 
 function extractJson(text: string): unknown {
@@ -105,20 +163,31 @@ function geminiRequest(model: string, prompt: string, image: ImageInput, apiKey:
   return fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ contents: [{ parts }], generationConfig: { temperature: 0.2, maxOutputTokens: 1500, responseMimeType: "application/json" } }),
+    // Marge large : sur les modèles récents, la réflexion interne compte dans la limite de sortie.
+    body: JSON.stringify({ contents: [{ parts }], generationConfig: { temperature: 0.2, maxOutputTokens: 4096, responseMimeType: "application/json" } }),
   });
 }
 
+let workingGeminiModel: string | null = null;
+
 async function analyzeWithGemini(prompt: string, image: ImageInput, apiKey: string): Promise<string> {
-  // Modèle principal puis repli léger ; on retente en cas de surcharge (503/429).
-  const models = Array.from(new Set([GEMINI_MODEL, "gemini-2.5-flash-lite"]));
+  // Modèles dans l'ordre ; modèle retiré (404) → suivant ; surcharge (503/429) → on
+  // retente un peu puis on passe au suivant. Le premier modèle qui marche est retenu
+  // pour les requêtes suivantes de cette instance.
   let overloaded = false;
-  for (const model of models) {
-    for (let attempt = 0; attempt < 3; attempt++) {
+  const start = Math.max(0, GEMINI_MODELS.indexOf(workingGeminiModel || ""));
+  const ordered = [...GEMINI_MODELS.slice(start), ...GEMINI_MODELS.slice(0, start)];
+  for (const model of ordered) {
+    for (let attempt = 0; attempt < 2; attempt++) {
       const res = await geminiRequest(model, prompt, image, apiKey);
       if (res.ok) {
-        const data = (await res.json()) as { candidates?: { content?: { parts?: { text?: string }[] } }[] };
-        return (data.candidates?.[0]?.content?.parts || []).map((p) => p.text || "").join("");
+        workingGeminiModel = model;
+        const data = (await res.json()) as { candidates?: { content?: { parts?: { text?: string; thought?: boolean }[] } }[] };
+        return (data.candidates?.[0]?.content?.parts || []).filter((p) => !p.thought).map((p) => p.text || "").join("");
+      }
+      if (res.status === 404 || (res.status === 400 && /not found|not supported|unknown model/i.test(await res.clone().text().catch(() => "")))) {
+        if (workingGeminiModel === model) workingGeminiModel = null;
+        break; // modèle indisponible : on passe au suivant
       }
       if (res.status === 503 || res.status === 429) {
         overloaded = true;
@@ -137,9 +206,20 @@ async function analyzeWithAnthropic(prompt: string, image: ImageInput, apiKey: s
   const content: Anthropic.ContentBlockParam[] = [];
   if (image) content.push({ type: "image", source: { type: "base64", media_type: image.mediaType, data: image.base64 } });
   content.push({ type: "text", text: prompt });
-  const message = await client.messages.create({ model: ANTHROPIC_MODEL, max_tokens: 1500, messages: [{ role: "user", content }] });
-  const textBlock = message.content.find((b) => b.type === "text");
-  return textBlock && textBlock.type === "text" ? textBlock.text : "";
+  let lastError: unknown = null;
+  for (const model of ANTHROPIC_MODELS) {
+    try {
+      const message = await client.messages.create({ model, max_tokens: 2000, messages: [{ role: "user", content }] });
+      const textBlock = message.content.find((b) => b.type === "text");
+      return textBlock && textBlock.type === "text" ? textBlock.text : "";
+    } catch (error) {
+      // Modèle retiré ou inconnu : on essaie le suivant. Toute autre erreur est remontée.
+      const status = (error as { status?: number })?.status;
+      if (status !== 404) throw error;
+      lastError = error;
+    }
+  }
+  throw lastError instanceof Error ? lastError : new Error("Aucun modèle Anthropic disponible.");
 }
 
 // N'accepte que les requêtes venant du même domaine que l'app (bloque les appels
@@ -185,9 +265,11 @@ export async function POST(req: Request) {
   let text = "";
   let hint = "";
   let lang = "fr";
+  let mode: "meal" | "label" = "meal";
 
   try {
     const form = await req.formData();
+    mode = String(form.get("mode") || "") === "label" ? "label" : "meal";
     const file = form.get("image");
     text = String(form.get("text") || "").trim().slice(0, 500);
     hint = String(form.get("hint") || "").trim().slice(0, 300);
@@ -209,11 +291,20 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Fournis une photo ou une description du repas." }, { status: 400 });
   }
 
+  if (mode === "label" && !image) {
+    return NextResponse.json({ error: "Prends en photo le tableau nutritionnel du produit." }, { status: 400 });
+  }
+
   try {
-    const prompt = buildPrompt({ hasImage: !!image, text, hint, lang });
+    const prompt = mode === "label" ? buildLabelPrompt(lang) : buildPrompt({ hasImage: !!image, text, hint, lang });
     const out = geminiKey
       ? await analyzeWithGemini(prompt, image, geminiKey)
       : await analyzeWithAnthropic(prompt, image, anthropicKey!);
+    if (mode === "label") {
+      const label = sanitizeLabel(extractJson(out));
+      if (!label) return NextResponse.json({ error: "Tableau nutritionnel illisible. Reprends la photo bien à plat et nette, ou saisis les valeurs à la main." }, { status: 422 });
+      return NextResponse.json({ label });
+    }
     const items = sanitizeItems(extractJson(out));
     return NextResponse.json({ items });
   } catch (error) {

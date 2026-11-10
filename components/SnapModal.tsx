@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import type { MealType } from "@/lib/types";
 import { toEditableItem, type EditableScanItem, type ScanItem } from "@/lib/calsnap";
+import { compressImage } from "@/lib/image";
 import { makeT } from "@/lib/i18n";
 
 const MEALS: MealType[] = ["Petit-déjeuner", "Déjeuner", "Dîner", "Collation"];
@@ -42,27 +43,6 @@ function scaled(item: EditableScanItem) {
     carbs: Math.round(item.per100.carbs * f * 10) / 10,
     fat: Math.round(item.per100.fat * f * 10) / 10,
   };
-}
-
-// Compresse/redimensionne l'image avant l'envoi (gain de débit et de coût d'analyse).
-async function compressImage(file: File): Promise<File> {
-  try {
-    const bitmap = await createImageBitmap(file);
-    const maxDim = 1280;
-    const scale = Math.min(1, maxDim / Math.max(bitmap.width, bitmap.height));
-    const w = Math.round(bitmap.width * scale);
-    const h = Math.round(bitmap.height * scale);
-    const canvas = document.createElement("canvas");
-    canvas.width = w;
-    canvas.height = h;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return file;
-    ctx.drawImage(bitmap, 0, 0, w, h);
-    const blob: Blob | null = await new Promise((res) => canvas.toBlob(res, "image/jpeg", 0.82));
-    return blob ? new File([blob], "meal.jpg", { type: "image/jpeg" }) : file;
-  } catch {
-    return file;
-  }
 }
 
 export default function SnapModal({

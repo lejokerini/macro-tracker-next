@@ -1,6 +1,6 @@
 # Macrolens — suivi calories & macros (Next.js)
 
-> Dernière version : **V23** (voir en bas de page). Historique des versions ci-dessous.
+> Dernière version : **V24** (voir en bas de page). Historique des versions ci-dessous.
 
 Application Next.js / TypeScript pour le suivi alimentaire : profils, journal macros, catalogue aliments, recettes, programme, courses, placard et poids.
 
@@ -143,6 +143,38 @@ Voir `CAHIER-DES-CHARGES-CALSNAP.md` (racine du dépôt) pour la feuille de rout
 - **Chargement plus léger** : les fenêtres (photo, code-barres, masse grasse, recettes…) sont chargées à la demande ; le lecteur de code-barres ne pèse plus sur l'ouverture de l'app.
 - **Code** : les petits composants d'affichage sont sortis de `MacroTrackerApp.tsx` (`components/app-widgets.tsx`, `lib/micros.ts`).
 - Routes d'images (`/api/icon`, `/api/feature-graphic`) passées du runtime Edge au runtime Node.js (recommandé par Next.js).
+
+## V24 - Scanner, aliments et bilan pour le coach
+
+Analyse photo
+- Modèles retirés gérés automatiquement : Gemini essaie `GEMINI_MODEL`, puis
+  gemini-3.6-flash, gemini-flash-latest, gemini-3.5-flash et gemini-2.5-flash (un modèle
+  qui répond 404 est sauté ; le premier qui marche est retenu). Même chose côté Anthropic
+  (`ANTHROPIC_MODEL`, claude-sonnet-5-5, claude-haiku-5-5).
+- Nouveau mode « lecture d'étiquette » (`mode=label`) : renvoie les valeurs pour 100 g
+  lues sur le tableau nutritionnel.
+
+Scanner de code-barres
+- Lecteur natif du téléphone quand il existe (BarcodeDetector), sinon ZXing limité aux
+  codes alimentaires (EAN-13, EAN-8, UPC). Caméra HD, mise au point continue, lampe,
+  vibration, clé de contrôle vérifiée (et deux lectures identiques avec ZXing).
+- Produits déjà scannés ou créés reconnus tout de suite, même sans réseau.
+- Correctif : un produit absent d'Open Food Facts (réponse 404) affichait « recherche
+  indisponible » ; il affiche maintenant « introuvable » et propose de le créer
+  (photo de l'étiquette ou saisie), avec son code-barres retenu.
+
+Aliments
+- « Créer un aliment » dans le journal (et « Mes aliments » pour modifier ou supprimer).
+- 62 aliments ajoutés (`data/extra-foods.ts`) : plats maison et meal prep calculés avec la
+  table Ciqual, McDonald's France (tableau officiel, édition 2014), nutrition sportive prête
+  à consommer, plats à emporter et cocktails (estimations signalées comme telles).
+- Recherche tolérante aux fautes de frappe (« yahourt », « spageti », « sardinnes »).
+- Correctif : le TDEE réel, le récap hebdo et le nouveau bilan ignoraient les produits
+  scannés et les aliments créés (ils n'étaient cherchés que dans la base fixe).
+
+Coaching
+- Onglet Progrès : « Bilan de la semaine pour ton coach » (repas, poids moyen, zone du
+  programme, ressenti), à envoyer sur WhatsApp ou à partager.
 
 ## Sauvegarde cloud et comptes (Supabase)
 

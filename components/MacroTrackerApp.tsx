@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
-import { ensureCiqualLoaded, estimateServingGrams, findFood, foods, formatQuantity, isPieceInput, quantityToNutritionGrams, searchFoods, STORES } from "@/lib/food-engine";
+import { ensureCiqualLoaded, estimateServingGrams, findFood, findFoodByBarcode, foods, formatQuantity, isCustomFood, isPieceInput, quantityToNutritionGrams, registerUserFoods, searchFoods, STORES } from "@/lib/food-engine";
+import { buildWeeklyReport } from "@/lib/report";
 import { COACH_PROGRAMS, adaptiveTDEE, average7, calculateTargets, effortFueling, isCoachProgram, theoreticalMaintenance, logMacros, recipeMacros, sumIngredients, tdeeHistory, trainingZones, weeklyRecap, weightTrendRecommendation, weightTrendPerWeek, type EffortIntensity } from "@/lib/nutrition";
 import { COACH, coachWhatsAppLink } from "@/lib/coach";
 import { makeT, LANGS, type Lang } from "@/lib/i18n";
@@ -114,6 +115,7 @@ const BarcodeScanModal = dynamic(() => import("@/components/BarcodeScanModal"), 
 const BodyFatModal = dynamic(() => import("@/components/BodyFatModal"), { ssr: false, loading: ModalLoading });
 const MacroInfoModal = dynamic(() => import("@/components/MacroInfoModal"), { ssr: false, loading: ModalLoading });
 const CreateRecipeModal = dynamic(() => import("@/components/CreateRecipeModal"), { ssr: false, loading: ModalLoading });
+const CustomFoodModal = dynamic(() => import("@/components/CustomFoodModal"), { ssr: false, loading: ModalLoading });
 
 // Devient vrai à la première ouverture puis le reste : la fenêtre reste montée
 // ensuite et garde son contenu entre deux ouvertures, comme avant.
@@ -169,6 +171,9 @@ export default function MacroTrackerApp() {
   const [macroInfo, setMacroInfo] = useState<MacroKind | null>(null);
   const snapMounted = useOpenedOnce(snapOpen);
   const barcodeMounted = useOpenedOnce(barcodeOpen);
+  const [customFoodOpen, setCustomFoodOpen] = useState(false);
+  const [customFoodSeed, setCustomFoodSeed] = useState("");
+  const [reportFeeling, setReportFeeling] = useState("");
   const bfModalMounted = useOpenedOnce(bfModalOpen);
   const macroInfoMounted = useOpenedOnce(macroInfo !== null);
   const [microDetail, setMicroDetail] = useState<MicroKey | null>(null);
@@ -203,8 +208,16 @@ export default function MacroTrackerApp() {
   const dynamicFoods = useMemo(() => {
     const map = new Map<string, Food>();
     [...(state.offFoods || []), ...offResults].forEach(f => map.set(f.id, f));
-    return [...map.values()];
+    const list = [...map.values()];
+    // Rend ces aliments visibles pour tous les calculs (TDEE réel, récap, bilan).
+    registerUserFoods(list);
+    return list;
   }, [state.offFoods, offResults]);
+  // Aliments de l'utilisateur proposés dans la recherche : créés à la main ou déjà
+  // scannés (pas les lignes issues d'une analyse photo).
+  const userSavedFoods = useMemo(() => (state.offFoods || []).filter(f => f.source !== "estimated"), [state.offFoods]);
+  const myFoods = useMemo(() => (state.offFoods || []).filter(f => isCustomFood(f)), [state.offFoods]);
+  const usedFoodIds = useMemo(() => new Set(state.logs.map(l => l.foodId)), [state.logs]);
   const allFoods = useMemo(() => [...dynamicFoods, ...foods], [dynamicFoods, ciqualReady]);
   function findFoodAny(id?: string) { return id ? allFoods.find(f => f.id === id) : undefined; }
   const recentFoods = useMemo(() => {
@@ -299,7 +312,7 @@ export default function MacroTrackerApp() {
     return () => listener.subscription.unsubscribe();
   }, [supabase]);
 
-  const staticVisibleFoods = useMemo(() => searchFoods(query, { category, diet: activeProfile?.diet, excludeAllergens: activeProfile?.allergies }), [query, category, activeProfile?.diet, activeProfile?.allergies, ciqualReady]);
+  const staticVisibleFoods = useMemo(() => searchFoods(query, { category, diet: activeProfile?.diet, excludeAllergens: activeProfile?.allergies, extra: query.trim() ? userSavedFoods : myFoods }), [query, category, activeProfile?.diet, activeProfile?.allergies, ciqualReady, userSavedFoods, myFoods]);
   const pantryOptions = useMemo(() => searchFoods(pantryQuery, { diet: activeProfile?.diet, excludeAllergens: activeProfile?.allergies }).slice(0, 300), [pantryQuery, activeProfile?.diet, activeProfile?.allergies, ciqualReady]);
   const pantrySelectedObj = pantrySelectedFood ? findFoodAny(pantrySelectedFood) : undefined;
   useEffect(() => {
@@ -499,6 +512,32 @@ export default function MacroTrackerApp() {
     }));
     setTab("journal");
     showToast(tr("journal.addedTo") + food.name);
+  }
+  // Aliment créé (journal ou code-barres introuvable) : enregistré avec les autres
+  // aliments de l'utilisateur, donc sauvegardé et synchronisé comme eux.
+  function saveCustomFood(food: Food, selectInJournal = true) {
+    setState(s => {
+      const list = s.offFoods || [];
+      const exists = list.some(f => f.id === food.id);
+      return { ...s, offFoods: exists ? list.map(f => f.id === food.id ? food : f) : [...list, food] };
+    });
+    if (selectInJournal) { setQuery(food.name); setSelectedFood(food.id); setCustomFoodOpen(false); setTab("journal"); }
+    showToast(tr("cf.saved") + food.name);
+  }
+  function deleteCustomFood(food: Food) {
+    if (state.logs.some(l => l.foodId === food.id)) { showToast(tr("cf.usedHint")); return; }
+    setState(s => ({ ...s, offFoods: (s.offFoods || []).filter(f => f.id !== food.id), favorites: (s.favorites || []).filter(id => id !== food.id) }));
+  }
+  function openCustomFood(seed = "") { setCustomFoodSeed(seed); setCustomFoodOpen(true); }
+  const weeklyReport = useMemo(() => buildWeeklyReport({ profile: activeProfile, logs: state.logs, weights: state.weights, targets, feeling: reportFeeling, lang: lang === "es" ? "es" : "fr" }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [activeProfile, state.logs, state.weights, targets?.kcal, targets?.protein, reportFeeling, lang, dynamicFoods]);
+  async function shareReport() {
+    const text = weeklyReport.text;
+    try {
+      if (navigator.share) { await navigator.share({ text }); return; }
+    } catch { /* partage annulé : on copie */ }
+    try { await navigator.clipboard.writeText(text); showToast(tr("report.copied")); } catch { showToast(tr("report.copyFail")); }
   }
   function quickAddFood(food: Food) {
     const q = isPieceInput(food) ? 1 : 100;
@@ -743,7 +782,7 @@ export default function MacroTrackerApp() {
     </form></div><div className="span-4 side-stack"><div className="card"><h3>{tr("prof.existing")}</h3><div className="list">{state.profiles.map(p=><div className="item" key={p.id}><div className="space"><strong>{p.firstName} {p.lastName}</strong><button className="btn secondary" onClick={()=>setState(s=>({...s,activeProfileId:p.id}))}>{tr("prof.activate")}</button></div><span className="muted">{p.goal} · {p.diet}</span><div className="row" style={{marginTop:8}}><button className="btn danger" onClick={()=>{if(confirm("Supprimer ce profil ?")) setState(s=>({ ...s, profiles: s.profiles.filter(x=>x.id!==p.id), activeProfileId: s.activeProfileId === p.id ? undefined : s.activeProfileId }))}}>{tr("common.delete")}</button></div></div>)}</div>{!state.profiles.length && <p className="muted">{tr("prof.noProfile")}</p>}</div><div className="card coach-card"><h3>{tr("coach.cardTitle")}</h3><p className="muted">{tr("coach.cardText")}</p><div className="row"><a className="btn" href={coachWhatsAppLink(tr("coach.waMessage"))} target="_blank" rel="noopener noreferrer">{tr("coach.cardCta")}</a>{COACH.siteUrl && <a className="btn secondary" href={COACH.siteUrl} target="_blank" rel="noopener noreferrer">{tr("coach.cardSite")}</a>}</div></div></div></section>}
 
     {tab === "journal" && <section className="grid">
-      <div className="card span-4"><h2>{tr("journal.add")}</h2><button className="btn snap-cta" onClick={()=>setSnapOpen(true)}>{tr("journal.snapCta")}</button><button className="btn secondary snap-cta" onClick={()=>setBarcodeOpen(true)}>{tr("journal.scanCta")}</button><label>{tr("common.date")}</label><input type="date" value={date} onChange={e=>setDate(e.target.value)} /><label>{tr("common.meal")}</label><select value={selectedMeal} onChange={e=>setSelectedMeal(e.target.value as MealType)}>{MEALS.map(m=><option key={m} value={m}>{tr("meal."+m)}</option>)}</select>{(favoriteFoods.length > 0 || recentFoods.length > 0) && <div className="quick-foods">{favoriteFoods.length > 0 && <><div className="quick-foods-title">{tr("journal.favorites")}</div><div className="quick-foods-row">{favoriteFoods.slice(0,8).map(f=><button type="button" key={f.id} className="quick-food-chip" onClick={()=>quickAddFood(f)} title="Ajouter au journal"><span>{foodIcon(f)}</span>{f.name}</button>)}</div></>}{recentFoods.length > 0 && <><div className="quick-foods-title">{tr("journal.recents")}</div><div className="quick-foods-row">{recentFoods.slice(0,8).map(f=><button type="button" key={f.id} className="quick-food-chip" onClick={()=>quickAddFood(f)} title="Ajouter au journal"><span>{foodIcon(f)}</span>{f.name}</button>)}</div></>}</div>}<label>{tr("common.search")}</label><input value={query} onChange={e=>setQuery(e.target.value)} placeholder={tr("journal.searchPlaceholder")}/><p className="form-help">Recherche locale + Open Food Facts pour les produits de marque.</p>{offLoading && <p className="form-help">Recherche Open Food Facts en cours...</p>}{offError && <p className="form-help bad-text">{offError}</p>}<ProductResults foods={foodOptions.slice(0,10)} selectedId={selectedFood} onSelect={setSelectedFood}/>{!foodOptions.length && !offLoading && <p className="form-help bad-text">Aucun résultat : l'application n’ajoute rien par défaut.</p>}{selectedFoodObj && <ProductCard food={selectedFoodObj} qty={qty} macros={selectedPreview} isFavorite={(state.favorites||[]).includes(selectedFoodObj.id)} onToggleFavorite={()=>toggleFavorite(selectedFoodObj)}/>}<QuantityPicker value={qty} onChange={setQty} food={selectedFoodObj} unit={journalUnit} onUnitChange={changeJournalUnit}/><div className="macro-preview"><span>{selectedPreview.kcal} kcal</span><span>P {selectedPreview.protein}g</span><span>G {selectedPreview.carbs}g</span><span>L {selectedPreview.fat}g</span><span>Fibres {selectedPreview.fiber}g</span></div><MicroPanel title="Vitamines & minéraux de l'aliment" micros={selectedMicros} onInfo={setMicroDetail}/><button className="btn" disabled={!selectedFood || !foodOptions.length || qty <= 0} onClick={addFoodLog}>{tr("journal.addToJournal")}</button></div>
+      <div className="card span-4"><h2>{tr("journal.add")}</h2><button className="btn snap-cta" onClick={()=>setSnapOpen(true)}>{tr("journal.snapCta")}</button><button className="btn secondary snap-cta" onClick={()=>setBarcodeOpen(true)}>{tr("journal.scanCta")}</button><button type="button" className="btn secondary snap-cta" onClick={()=>openCustomFood(query.trim())}>{tr("cf.journalCta")}</button><label>{tr("common.date")}</label><input type="date" value={date} onChange={e=>setDate(e.target.value)} /><label>{tr("common.meal")}</label><select value={selectedMeal} onChange={e=>setSelectedMeal(e.target.value as MealType)}>{MEALS.map(m=><option key={m} value={m}>{tr("meal."+m)}</option>)}</select>{(favoriteFoods.length > 0 || recentFoods.length > 0) && <div className="quick-foods">{favoriteFoods.length > 0 && <><div className="quick-foods-title">{tr("journal.favorites")}</div><div className="quick-foods-row">{favoriteFoods.slice(0,8).map(f=><button type="button" key={f.id} className="quick-food-chip" onClick={()=>quickAddFood(f)} title="Ajouter au journal"><span>{foodIcon(f)}</span>{f.name}</button>)}</div></>}{recentFoods.length > 0 && <><div className="quick-foods-title">{tr("journal.recents")}</div><div className="quick-foods-row">{recentFoods.slice(0,8).map(f=><button type="button" key={f.id} className="quick-food-chip" onClick={()=>quickAddFood(f)} title="Ajouter au journal"><span>{foodIcon(f)}</span>{f.name}</button>)}</div></>}</div>}<label>{tr("common.search")}</label><input value={query} onChange={e=>setQuery(e.target.value)} placeholder={tr("journal.searchPlaceholder")}/><p className="form-help">Recherche locale + Open Food Facts pour les produits de marque.</p>{offLoading && <p className="form-help">Recherche Open Food Facts en cours...</p>}{offError && <p className="form-help bad-text">{offError}</p>}<ProductResults foods={foodOptions.slice(0,10)} selectedId={selectedFood} onSelect={setSelectedFood}/>{!foodOptions.length && !offLoading && <p className="form-help bad-text">{tr("cf.noResult")} <button type="button" className="info-link" onClick={()=>openCustomFood(query.trim())}>{tr("cf.createNamed").replace("{name}", query.trim() || "…")}</button></p>}{selectedFoodObj && <ProductCard food={selectedFoodObj} qty={qty} macros={selectedPreview} isFavorite={(state.favorites||[]).includes(selectedFoodObj.id)} onToggleFavorite={()=>toggleFavorite(selectedFoodObj)}/>}<QuantityPicker value={qty} onChange={setQty} food={selectedFoodObj} unit={journalUnit} onUnitChange={changeJournalUnit}/><div className="macro-preview"><span>{selectedPreview.kcal} kcal</span><span>P {selectedPreview.protein}g</span><span>G {selectedPreview.carbs}g</span><span>L {selectedPreview.fat}g</span><span>Fibres {selectedPreview.fiber}g</span></div><MicroPanel title="Vitamines & minéraux de l'aliment" micros={selectedMicros} onInfo={setMicroDetail}/><button className="btn" disabled={!selectedFood || !foodOptions.length || qty <= 0} onClick={addFoodLog}>{tr("journal.addToJournal")}</button></div>
       <div className="card span-8"><h2>{tr("journal.diaryOf")} {date}</h2><div className="row" style={{margin:"2px 0 10px"}}><span className="muted">Dupliquer ce jour vers :</span><input type="date" value={copyDate} onChange={e=>setCopyDate(e.target.value)} style={{maxWidth:160}}/><button className="btn secondary" onClick={()=>duplicateDay(copyDate)} disabled={!dayLogs.length}>Copier</button></div><div className="pillbar"><div className="kpi">Kcal <strong>{totals.kcal}</strong></div><div className="kpi">P <strong>{totals.protein}g</strong></div><div className="kpi">G <strong>{totals.carbs}g</strong></div><div className="kpi">L <strong>{totals.fat}g</strong></div></div><MicroPanel title="Micros cumulés du jour" micros={microsToday} onInfo={setMicroDetail}/>{MEALS.map(m=><div className="meal" key={m} style={{marginTop:12}}><div className="meal-head">{tr("meal."+m)}</div><div className="meal-body list">{dayLogs.filter(l=>l.meal===m).map(l=>{const f=findFoodAny(l.foodId); const kcal = f ? macrosFromBaseGrams(f,l.qty).kcal : 0; return <div className="item space" key={l.id}><span>{f?.name} · {formatQuantity(f, l.qty, l.displayQty, l.displayUnit)} {f && <span className="muted">· {kcal} kcal</span>}</span><div className="row" style={{gap:6}}><button className="qty-btn qty-btn-sm" onClick={()=>adjustLog(l, l.displayUnit==="piece"?-1:-10)} aria-label="Diminuer">−</button><button className="qty-btn qty-btn-sm" onClick={()=>adjustLog(l, l.displayUnit==="piece"?1:10)} aria-label="Augmenter">+</button><button className="btn danger" onClick={()=>removeLog(l.id)}>{tr("journal.remove")}</button></div></div>})}</div></div>)}</div>
     </section>}
 
@@ -846,6 +885,18 @@ export default function MacroTrackerApp() {
     </section>}
 
     {tab === "progres" && <section className="grid">
+      <div className="card span-12 report-card">
+        <h2>{tr("report.title")}</h2>
+        <p className="muted">{tr("report.intro")}</p>
+        <label>{tr("report.feeling")}</label>
+        <textarea rows={2} value={reportFeeling} onChange={e=>setReportFeeling(e.target.value.slice(0, 400))} placeholder={tr("report.feelingPh")} />
+        <pre className="report-preview">{weeklyReport.text}</pre>
+        <div className="row">
+          <a className="btn" href={coachWhatsAppLink(weeklyReport.text)} target="_blank" rel="noopener noreferrer">{tr("report.sendCoach")}</a>
+          <button type="button" className="btn secondary" onClick={shareReport}>{tr("report.share")}</button>
+        </div>
+        {weeklyReport.daysLogged < 4 && <p className="form-help">{tr("report.fewDays")}</p>}
+      </div>
       <div className="card span-12" style={{background:"linear-gradient(135deg,#173018,#2f6b2f)",color:"#fff",border:"none"}}>
         <div className="space"><h2 style={{color:"#fff",margin:0}}>📊 {tr("recap.title")}</h2><span style={{opacity:.85,fontWeight:900,letterSpacing:"-.02em"}}>Macrolens</span></div>
         {recap.daysLogged === 0 ? <p style={{opacity:.9,marginTop:8}}>{tr("recap.needData")}</p> : <>
@@ -885,7 +936,8 @@ export default function MacroTrackerApp() {
     </section>}
 
     {snapMounted && <SnapModal open={snapOpen} onClose={()=>setSnapOpen(false)} onConfirm={addScannedItems} onScanBarcode={()=>{ setSnapOpen(false); setBarcodeOpen(true); }} defaultMeal={selectedMeal} date={date} dailyLimit={state.premium ? 50 : 5} isPremium={!!state.premium} lang={lang} />}
-    {barcodeMounted && <BarcodeScanModal open={barcodeOpen} onClose={()=>setBarcodeOpen(false)} onConfirm={addBarcodeFood} defaultMeal={selectedMeal} date={date} lang={lang} />}
+    {barcodeMounted && <BarcodeScanModal open={barcodeOpen} onClose={()=>setBarcodeOpen(false)} onConfirm={addBarcodeFood} defaultMeal={selectedMeal} date={date} lang={lang} findLocal={(code)=>findFoodByBarcode(code, state.offFoods || [])} onCreateFood={(food)=>saveCustomFood(food, false)} />}
+    {customFoodOpen && <CustomFoodModal open={customFoodOpen} onClose={()=>setCustomFoodOpen(false)} myFoods={myFoods} usedIds={usedFoodIds} initialName={customFoodSeed} lang={lang} onSave={(food, isNew)=>saveCustomFood(food, isNew)} onDelete={deleteCustomFood} />}
     {bfModalMounted && <BodyFatModal open={bfModalOpen} onClose={()=>setBfModalOpen(false)} onApply={(v)=>{ setBodyFat(String(v)); setBfModalOpen(false); }} defaultSex={activeProfile?.sex || "homme"} defaultHeight={activeProfile?.heightCm} lang={lang} />}
     {macroInfoMounted && <MacroInfoModal macro={macroInfo} onClose={()=>setMacroInfo(null)} lang={lang} />}
     {createRecipeMounted && <CreateRecipeModal open={createRecipeOpen} onClose={()=>setCreateRecipeOpen(false)} onSave={addCustomRecipe} lang={lang} />}

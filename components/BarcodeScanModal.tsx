@@ -2,10 +2,33 @@
 
 import { useEffect, useRef, useState } from "react";
 import { BrowserMultiFormatReader, type IScannerControls } from "@zxing/browser";
+import { BarcodeFormat, DecodeHintType } from "@zxing/library";
 import type { Food, MealType } from "@/lib/types";
 import { fetchOpenFoodFactsByBarcode } from "@/lib/openfoodfacts";
-import { estimateServingGrams, isPieceInput } from "@/lib/food-engine";
+import { barcodeVariants, estimateServingGrams, isPieceInput } from "@/lib/food-engine";
+import { isValidFoodBarcode } from "@/lib/barcode";
 import { makeT } from "@/lib/i18n";
+import CustomFoodForm from "@/components/CustomFoodForm";
+
+// Lecteur de codes-barres intégré au navigateur (Chrome Android, Safari récent) :
+// plus rapide et plus fiable que la lecture en JavaScript quand il existe.
+type NativeDetector = { detect: (source: HTMLVideoElement) => Promise<{ rawValue: string }[]> };
+type NativeDetectorCtor = { new (opts: { formats: string[] }): NativeDetector; getSupportedFormats?: () => Promise<string[]> };
+const FOOD_FORMATS = ["ean_13", "ean_8", "upc_a", "upc_e"];
+
+async function createNativeDetector(): Promise<NativeDetector | null> {
+  const Ctor = (globalThis as unknown as { BarcodeDetector?: NativeDetectorCtor }).BarcodeDetector;
+  if (!Ctor) return null;
+  try {
+    const supported = (await Ctor.getSupportedFormats?.()) ?? [];
+    const formats = FOOD_FORMATS.filter((f) => supported.includes(f));
+    return formats.length ? new Ctor({ formats }) : null;
+  } catch {
+    return null;
+  }
+}
+
+type TrackCaps = MediaTrackCapabilities & { torch?: boolean; focusMode?: string[] };
 
 const MEALS: MealType[] = ["Petit-déjeuner", "Déjeuner", "Dîner", "Collation"];
 
@@ -40,6 +63,8 @@ export default function BarcodeScanModal({
   defaultMeal,
   date,
   lang = "fr",
+  findLocal,
+  onCreateFood,
 }: {
   open: boolean;
   onClose: () => void;
@@ -47,6 +72,10 @@ export default function BarcodeScanModal({
   defaultMeal: MealType;
   date: string;
   lang?: string;
+  /** Produits déjà connus sur ce téléphone (scannés ou créés) : réponse immédiate, même hors ligne. */
+  findLocal?: (code: string) => Food | undefined;
+  /** Enregistre un produit créé par l'utilisateur (code-barres introuvable). */
+  onCreateFood?: (food: Food) => void;
 }) {
   const tr = makeT(lang === "es" ? "es" : "fr");
   const [phase, setPhase] = useState<Phase>("scan");
@@ -60,38 +89,105 @@ export default function BarcodeScanModal({
   const [nnInfo, setNnInfo] = useState(false);
   const [qtyText, setQtyText] = useState("");
   const [qtyFocused, setQtyFocused] = useState(false);
+  const [fromCache, setFromCache] = useState(false);
+  const [manualError, setManualError] = useState("");
+  const [creating, setCreating] = useState(false);
+  const [torchAvailable, setTorchAvailable] = useState(false);
+  const [torchOn, setTorchOn] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
-  const controlsRef = useRef<IScannerControls | null>(null);
+  const stopRef = useRef<(() => void) | null>(null);
+  const trackRef = useRef<MediaStreamTrack | null>(null);
   const lookupGuard = useRef(false);
+  const lastRead = useRef<{ code: string; at: number }>({ code: "", at: 0 });
 
   function stopCamera() {
-    controlsRef.current?.stop();
-    controlsRef.current = null;
+    stopRef.current?.();
+    stopRef.current = null;
+    trackRef.current = null;
+    setTorchAvailable(false);
+    setTorchOn(false);
+  }
+
+  function showProduct(food: Food, cached: boolean) {
+    setProduct(food);
+    setFromCache(cached);
+    const defUnit: QUnit = isPieceInput(food) ? "piece" : food.unit === "ml" ? "cl" : "g";
+    setUnit(defUnit);
+    setQty(defUnit === "piece" ? 1 : defUnit === "cl" ? 25 : 100);
+    setPhase("found");
+  }
+
+  // Code tapé à la main : on vérifie la clé avant d'interroger la base.
+  function manualLookup() {
+    if (!isValidFoodBarcode(manualCode)) { setManualError(tr("bc.invalidCode")); return; }
+    setManualError("");
+    lookup(manualCode);
   }
 
   async function lookup(code: string) {
-    const clean = code.trim();
+    const clean = code.replace(/\D/g, "");
     if (!clean || lookupGuard.current) return;
     lookupGuard.current = true;
     stopCamera();
     setLastCode(clean);
+    setCreating(false);
+    // 1. Déjà connu sur ce téléphone : instantané, même sans réseau.
+    const local = findLocal?.(clean);
+    if (local) {
+      showProduct(local, true);
+      lookupGuard.current = false;
+      return;
+    }
     setPhase("fetching");
     try {
-      const food = await fetchOpenFoodFactsByBarcode(clean);
-      if (food) {
-        setProduct(food);
-        const defUnit: QUnit = isPieceInput(food) ? "piece" : food.unit === "ml" ? "cl" : "g";
-        setUnit(defUnit);
-        setQty(defUnit === "piece" ? 1 : defUnit === "cl" ? 25 : 100);
-        setPhase("found");
-      } else {
-        setPhase("notfound");
+      // 2. Open Food Facts (un UPC à 12 chiffres peut y être enregistré avec un 0 devant).
+      let food: Food | null = null;
+      for (const variant of barcodeVariants(clean)) {
+        food = await fetchOpenFoodFactsByBarcode(variant);
+        if (food) break;
       }
+      if (food) showProduct(food, false);
+      else setPhase("notfound");
     } catch {
-      setErrorMsg(tr("bc.errOff"));
+      setErrorMsg(typeof navigator !== "undefined" && navigator.onLine === false ? tr("bc.errOffline") : tr("bc.errOff"));
       setPhase("error");
     } finally {
       lookupGuard.current = false;
+    }
+  }
+
+  // Code lu par la caméra : clé de contrôle vérifiée ; avec le lecteur JavaScript, on
+  // attend deux lectures identiques de suite pour écarter les erreurs de lecture.
+  function handleRead(raw: string, trusted: boolean) {
+    const code = raw.replace(/\D/g, "");
+    if (!isValidFoodBarcode(code)) return;
+    const now = Date.now();
+    const confirmed = trusted || (lastRead.current.code === code && now - lastRead.current.at < 1500);
+    lastRead.current = { code, at: now };
+    if (!confirmed || lookupGuard.current) return;
+    try { navigator.vibrate?.(60); } catch { /* vibration non disponible */ }
+    lookup(code);
+  }
+
+  async function setupTrack(track?: MediaStreamTrack) {
+    if (!track) return;
+    trackRef.current = track;
+    const caps = (track.getCapabilities?.() || {}) as TrackCaps;
+    setTorchAvailable(!!caps.torch);
+    if (caps.focusMode?.includes("continuous")) {
+      try { await track.applyConstraints({ advanced: [{ focusMode: "continuous" } as MediaTrackConstraintSet] }); } catch { /* mise au point non réglable */ }
+    }
+  }
+
+  async function toggleTorch() {
+    const track = trackRef.current;
+    if (!track) return;
+    const next = !torchOn;
+    try {
+      await track.applyConstraints({ advanced: [{ torch: next } as MediaTrackConstraintSet] });
+      setTorchOn(next);
+    } catch {
+      setTorchAvailable(false);
     }
   }
 
@@ -99,14 +195,58 @@ export default function BarcodeScanModal({
   useEffect(() => {
     if (!open || phase !== "scan") return;
     let cancelled = false;
-    const reader = new BrowserMultiFormatReader();
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let stream: MediaStream | null = null;
+    let controls: IScannerControls | null = null;
+    const video = videoRef.current;
+    const stop = () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+      controls?.stop();
+      stream?.getTracks().forEach((t) => t.stop());
+      if (video) video.srcObject = null;
+    };
+    stopRef.current = stop;
     (async () => {
       try {
-        const controls = await reader.decodeFromVideoDevice(undefined, videoRef.current ?? undefined, (result) => {
-          if (result) lookup(result.getText());
-        });
-        if (cancelled) controls.stop();
-        else controlsRef.current = controls;
+        const native = await createNativeDetector();
+        if (cancelled || !video) return;
+        if (native) {
+          // Lecteur natif : caméra arrière en haute définition, analyse ~8 fois par seconde.
+          stream = await navigator.mediaDevices.getUserMedia({
+            audio: false,
+            video: { facingMode: { ideal: "environment" }, width: { ideal: 1920 }, height: { ideal: 1080 } },
+          });
+          if (cancelled) { stream.getTracks().forEach((t) => t.stop()); return; }
+          video.srcObject = stream;
+          await video.play().catch(() => undefined);
+          await setupTrack(stream.getVideoTracks()[0]);
+          const tick = async () => {
+            if (cancelled) return;
+            if (video.readyState >= 2) {
+              try {
+                const codes = await native.detect(video);
+                for (const c of codes) handleRead(c.rawValue, true);
+              } catch { /* image non analysable, on continue */ }
+            }
+            if (!cancelled) timer = setTimeout(tick, 120);
+          };
+          tick();
+        } else {
+          // Repli JavaScript (ZXing), limité aux codes alimentaires pour aller plus vite.
+          const hints = new Map<DecodeHintType, unknown>();
+          hints.set(DecodeHintType.POSSIBLE_FORMATS, [BarcodeFormat.EAN_13, BarcodeFormat.EAN_8, BarcodeFormat.UPC_A, BarcodeFormat.UPC_E]);
+          hints.set(DecodeHintType.TRY_HARDER, true);
+          const reader = new BrowserMultiFormatReader(hints, { delayBetweenScanAttempts: 80 });
+          controls = await reader.decodeFromConstraints(
+            { audio: false, video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 }, height: { ideal: 720 } } },
+            video,
+            (result) => { if (result) handleRead(result.getText(), false); },
+          );
+          if (cancelled) { controls.stop(); return; }
+          const src = video.srcObject;
+          if (src instanceof MediaStream) await setupTrack(src.getVideoTracks()[0]);
+        }
       } catch {
         if (!cancelled) {
           setErrorMsg(tr("bc.errCamera"));
@@ -115,8 +255,8 @@ export default function BarcodeScanModal({
       }
     })();
     return () => {
-      cancelled = true;
-      stopCamera();
+      stop();
+      if (stopRef.current === stop) stopRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, phase]);
@@ -126,6 +266,7 @@ export default function BarcodeScanModal({
       stopCamera();
       lookupGuard.current = false;
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   if (!open) return null;
@@ -137,12 +278,22 @@ export default function BarcodeScanModal({
     setErrorMsg("");
     setLastCode("");
     setManualCode("");
+    setCreating(false);
     onClose();
   }
   function rescan() {
     setProduct(null);
     setErrorMsg("");
+    setManualCode("");
+    setManualError("");
+    setCreating(false);
+    lastRead.current = { code: "", at: 0 };
     setPhase("scan");
+  }
+  function saveCreated(food: Food) {
+    onCreateFood?.(food);
+    setCreating(false);
+    showProduct(food, false);
   }
 
   const baseGrams = product ? toBaseGrams(product, qty, unit) : 0;
@@ -164,6 +315,11 @@ export default function BarcodeScanModal({
             <div className="barcode-scanner">
               <video ref={videoRef} muted playsInline />
               <div className="barcode-frame" />
+              {torchAvailable && (
+                <button type="button" className={`barcode-torch ${torchOn ? "on" : ""}`} onClick={toggleTorch} aria-pressed={torchOn}>
+                  {torchOn ? tr("bc.torchOff") : tr("bc.torchOn")}
+                </button>
+              )}
             </div>
             <p className="snap-status barcode-hint">{tr("bc.aim")}</p>
             <div className="barcode-manual">
@@ -172,13 +328,15 @@ export default function BarcodeScanModal({
                 <input
                   inputMode="numeric"
                   value={manualCode}
-                  onChange={(e) => setManualCode(e.target.value.replace(/[^0-9]/g, ""))}
+                  onChange={(e) => { setManualCode(e.target.value.replace(/[^0-9]/g, "").slice(0, 14)); setManualError(""); }}
+                  onKeyDown={(e) => { if (e.key === "Enter" && manualCode.length >= 8) manualLookup(); }}
                   placeholder="ex. 7622210449283"
                 />
-                <button className="btn secondary" disabled={manualCode.length < 8} onClick={() => lookup(manualCode)}>
+                <button className="btn secondary" disabled={manualCode.length < 8} onClick={manualLookup}>
                   {tr("bc.search")}
                 </button>
               </div>
+              {manualError && <p className="form-help bad-text">{manualError}</p>}
             </div>
           </>
         )}
@@ -188,8 +346,8 @@ export default function BarcodeScanModal({
         {phase === "notfound" && (
           <div className="barcode-message">
             <p className="snap-status snap-error">{tr("bc.notFoundPre")}{lastCode}.</p>
-            <p className="muted">{tr("bc.notFoundHint")}</p>
-            <button className="btn" onClick={rescan}>{tr("bc.scanAgain")}</button>
+            <p className="muted">{tr("bc.notFoundCreate")}</p>
+            <CustomFoodForm barcode={lastCode} lang={lang} submitLabel={tr("bc.createSave")} onSave={saveCreated} onCancel={rescan} />
           </div>
         )}
 
@@ -202,14 +360,22 @@ export default function BarcodeScanModal({
                 <input
                   inputMode="numeric"
                   value={manualCode}
-                  onChange={(e) => setManualCode(e.target.value.replace(/[^0-9]/g, ""))}
+                  onChange={(e) => { setManualCode(e.target.value.replace(/[^0-9]/g, "").slice(0, 14)); setManualError(""); }}
+                  onKeyDown={(e) => { if (e.key === "Enter" && manualCode.length >= 8) manualLookup(); }}
                   placeholder="ex. 7622210449283"
                 />
-                <button className="btn secondary" disabled={manualCode.length < 8} onClick={() => lookup(manualCode)}>
+                <button className="btn secondary" disabled={manualCode.length < 8} onClick={manualLookup}>
                   {tr("bc.search")}
                 </button>
               </div>
+              {manualError && <p className="form-help bad-text">{manualError}</p>}
             </div>
+            {lastCode && !creating && (
+              <button className="btn secondary" onClick={() => setCreating(true)}>{tr("bc.createManual")}</button>
+            )}
+            {lastCode && creating && (
+              <CustomFoodForm barcode={lastCode} lang={lang} submitLabel={tr("bc.createSave")} onSave={saveCreated} onCancel={() => setCreating(false)} />
+            )}
             <button className="btn" onClick={rescan}>{tr("bc.retryCamera")}</button>
           </div>
         )}
@@ -227,8 +393,9 @@ export default function BarcodeScanModal({
               </div>
               <div className="product-info">
                 <h3>{product.name}</h3>
+                {fromCache && <p className="form-help" style={{ margin: "0 0 4px" }}>{tr("bc.fromCache")}</p>}
                 <p className="muted">
-                  {product.brand ? `${product.brand} · ` : ""}{tr("bc.code")}{product.barcode}
+                  {product.brand ? `${product.brand} · ` : ""}{tr("bc.code")}{product.barcode || lastCode}
                   {unit === "piece" ? ` · 1 ${product.servingLabel || "portion"} ≈ ${estimateServingGrams(product)} g` : ""}
                 </p>
                 {(product.nutriScore || product.novaGroup) && (

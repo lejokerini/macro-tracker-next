@@ -1,4 +1,5 @@
 import { rawFoods } from "@/data/raw-foods";
+import { extraFoodSeeds } from "@/data/extra-foods";
 import type { DietType, Food, Store } from "@/lib/types";
 
 export const STORES: Record<Store, { label: string; factor: number }> = {
@@ -207,7 +208,7 @@ const D_FISH: DietType[] = ["omnivore", "flexitarien", "pescetarien", "sans_porc
 const D_VEGE: DietType[] = ["omnivore", "flexitarien", "pescetarien", "vegetarien", "sans_porc"];
 const D_VEGAN: DietType[] = ["omnivore", "flexitarien", "pescetarien", "vegetarien", "vegan", "sans_porc"];
 
-type FrSeed = {
+export type FrSeed = {
   id: string; name: string; cat: string;
   kcal: number; p: number; c: number; f: number; fib?: number;
   unit?: Food["unit"]; state?: Food["state"];
@@ -624,14 +625,90 @@ function buildSearchIndex(list: Food[]) {
 }
 
 // Aliments « cœur » toujours présents (compléments, marques, base interne), légers, dans le bundle.
-const coreFoods: Food[] = [...supplementFoods, ...brandedFoods, ...frCommonFoods, ...localFoods];
+const extraFoods: Food[] = extraFoodSeeds.map(makeFrFood);
+const coreFoods: Food[] = [...supplementFoods, ...brandedFoods, ...frCommonFoods, ...extraFoods, ...localFoods];
 // La base Ciqual (3 484 aliments) est chargée à la demande (import dynamique) pour alléger l'ouverture.
 export let foods: Food[] = coreFoods;
 let foodById = new Map<string, Food>(foods.map(f => [f.id, f]));
 let foodSearchIndex = buildSearchIndex(foods);
 let ciqualLoaded = false;
 
-export function findFood(id: string) { return foodById.get(id); }
+// Aliments propres à l'utilisateur (produits scannés, aliments créés, analyses photo) :
+// enregistrés par l'app pour que tous les calculs (TDEE réel, récap, bilan) les retrouvent.
+let userFoodById = new Map<string, Food>();
+export function registerUserFoods(list: Food[]) {
+  userFoodById = new Map(list.map(f => [f.id, f]));
+}
+export function findFood(id: string) { return foodById.get(id) ?? userFoodById.get(id); }
+
+// Codes-barres : un UPC-A (12 chiffres) est le même produit qu'un EAN-13 commençant par 0.
+export function barcodeVariants(code: string): string[] {
+  const c = code.replace(/\D/g, "");
+  if (!c) return [];
+  const out = new Set([c]);
+  if (c.length === 12) out.add(`0${c}`);
+  if (c.length === 13 && c.startsWith("0")) out.add(c.slice(1));
+  return [...out];
+}
+export function findFoodByBarcode(code: string, extra: Food[] = []): Food | undefined {
+  const variants = new Set(barcodeVariants(code));
+  if (!variants.size) return undefined;
+  const match = (f: Food) => !!f.barcode && variants.has(f.barcode.replace(/\D/g, ""));
+  return extra.find(match) ?? [...userFoodById.values()].find(match) ?? foods.find(match);
+}
+
+// Aliment créé par l'utilisateur (étiquette recopiée à la main ou lue en photo).
+export type CustomFoodInput = {
+  id?: string;
+  name: string;
+  brand?: string;
+  barcode?: string;
+  per: "100g" | "100ml";
+  kcal: number; protein: number; carbs: number; fat: number; fiber?: number;
+  sugars?: number; salt?: number;
+  servingGrams?: number;
+  fromLabelPhoto?: boolean;
+};
+export const CUSTOM_FOOD_PREFIX = "perso_";
+export function isCustomFood(food?: Food) { return !!food && food.id.startsWith(CUSTOM_FOOD_PREFIX); }
+export function makeCustomFood(input: CustomFoodInput): Food {
+  const name = input.name.trim() || "Mon aliment";
+  const category = "Mes aliments";
+  const id = input.id || `${CUSTOM_FOOD_PREFIX}${typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2)}`;
+  const serving = input.servingGrams && input.servingGrams > 0 ? Math.round(input.servingGrams) : undefined;
+  const r1 = (x?: number) => Math.round(Math.max(0, x || 0) * 10) / 10;
+  const micros: Record<string, number> = {};
+  if (input.sugars && input.sugars > 0) micros.sugars = r1(input.sugars);
+  if (input.salt && input.salt > 0) { micros.salt = r1(input.salt); micros.sodium = Math.round(input.salt * 400); }
+  const prices = Object.keys(STORES).reduce((acc, key) => ({ ...acc, [key]: priceFor(name, category, key as Store) }), {} as Record<Store, number>);
+  const barcode = input.barcode?.replace(/\D/g, "") || undefined;
+  return {
+    id,
+    name,
+    category,
+    state: "standard",
+    unit: input.per === "100ml" ? "ml" : serving ? "piece" : "g",
+    purchaseUnit: "produit",
+    packageSize: serving || 100,
+    usableInRecipe: false,
+    diets: inferDiets(name),
+    allergens: inferAllergens(name),
+    prices,
+    macros: { kcal: Math.round(Math.max(0, input.kcal)), protein: r1(input.protein), carbs: r1(input.carbs), fat: r1(input.fat), fiber: r1(input.fiber) },
+    micros,
+    reliability: "standard",
+    source: "manual",
+    sourceRef: input.fromLabelPhoto
+      ? "Créé par toi à partir de la photo de l'étiquette : vérifie les valeurs."
+      : "Aliment créé par toi (valeurs de l'étiquette).",
+    barcode,
+    brand: input.brand?.trim() || undefined,
+    aliases: [barcode, input.brand?.trim()].filter((x): x is string => !!x),
+    icon: "🏷️",
+    servingLabel: serving ? "portion" : undefined,
+    servingGrams: serving,
+  } satisfies Food;
+}
 
 export async function ensureCiqualLoaded(): Promise<boolean> {
   if (ciqualLoaded) return false;
@@ -673,21 +750,104 @@ function scoreFood(food: Food, q: string, qx: string) {
   return qx !== q ? Math.min(s, relevanceScore(food, qx)) : s;
 }
 
-export function searchFoods(query: string, opts?: { category?: string; diet?: DietType; excludeAllergens?: string[] }) {
+// ---------------------------------------------------------------------------
+// Recherche tolérante aux fautes de frappe (« yahourt », « poulé », « spageti ») :
+// utilisée seulement quand la recherche exacte trouve peu de résultats.
+// ---------------------------------------------------------------------------
+const STOP_WORDS = new Set(["de", "du", "des", "la", "le", "les", "au", "aux", "et", "en", "a", "un", "une", "avec", "sans"]);
+function queryTokens(q: string) {
+  return q.split(/[^a-z0-9]+/).filter(t => t.length >= 3 && !STOP_WORDS.has(t));
+}
+// Distance de Damerau-Levenshtein (inversion de deux lettres = 1 faute), avec arrêt anticipé.
+export function editDistance(a: string, b: string, max = 2): number {
+  if (Math.abs(a.length - b.length) > max) return max + 1;
+  const prev2: number[] = new Array(b.length + 1).fill(0);
+  let prev: number[] = Array.from({ length: b.length + 1 }, (_, j) => j);
+  for (let i = 1; i <= a.length; i++) {
+    const cur: number[] = [i];
+    let rowMin = i;
+    for (let j = 1; j <= b.length; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      let v = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + cost);
+      if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) v = Math.min(v, prev2[j - 2] + 1);
+      cur[j] = v;
+      if (v < rowMin) rowMin = v;
+    }
+    if (rowMin > max) return max + 1;
+    for (let j = 0; j <= b.length; j++) prev2[j] = prev[j];
+    prev = cur;
+  }
+  return prev[b.length];
+}
+function tokenMatchesWord(token: string, word: string) {
+  if (word.includes(token)) return true;
+  const max = token.length >= 7 ? 2 : token.length >= 4 ? 1 : 0;
+  if (!max) return false;
+  // Mot entier proche (« yahourt » ~ « yaourt ») ou début de mot proche (« poulé » ~ « poulet »).
+  return editDistance(token, word, max) <= max || (word.length > token.length && editDistance(token, word.slice(0, token.length), max) <= max);
+}
+type IndexEntry = { f: Food; text: string };
+let fuzzyWordsFor: IndexEntry[] | null = null;
+let fuzzyWordList: { word: string; entries: number[] }[] = [];
+function buildFuzzyWords(index: IndexEntry[]) {
+  if (fuzzyWordsFor === index) return;
+  const map = new Map<string, number[]>();
+  index.forEach(({ text }, i) => {
+    for (const w of new Set(text.split(/[^a-z0-9]+/))) {
+      if (w.length < 3) continue;
+      const list = map.get(w);
+      if (list) list.push(i); else map.set(w, [i]);
+    }
+  });
+  fuzzyWordList = [...map.entries()].map(([word, entries]) => ({ word, entries }));
+  fuzzyWordsFor = index;
+}
+function fuzzyMatches(index: IndexEntry[], q: string): Set<number> {
+  const tokens = queryTokens(q);
+  if (!tokens.length) return new Set();
+  buildFuzzyWords(index);
+  let result: Set<number> | undefined;
+  for (const token of tokens) {
+    const hits = new Set<number>();
+    for (const { word, entries } of fuzzyWordList) {
+      if (tokenMatchesWord(token, word)) entries.forEach(i => hits.add(i));
+    }
+    const previous: Set<number> | undefined = result;
+    result = previous ? new Set<number>([...previous].filter((i: number) => hits.has(i))) : hits;
+    if (!result.size) break;
+  }
+  return result ?? new Set<number>();
+}
+
+export function searchFoods(query: string, opts?: { category?: string; diet?: DietType; excludeAllergens?: string[]; extra?: Food[] }) {
   const q = normalizeFoodText(query.trim());
   const qx = expandQuery(q); // terme canonique si l'utilisateur a tapé un synonyme/abréviation
-  const sorted = foodSearchIndex
-    .filter(({ f, text }) => {
-      if (q && !text.includes(q) && !(qx !== q && text.includes(qx))) return false;
-      if (opts?.category && opts.category !== "all" && f.category !== opts.category) return false;
-      if (opts?.diet && !f.diets.includes(opts.diet)) return false;
-      if (opts?.excludeAllergens?.some(a => f.allergens.includes(a))) return false;
-      return true;
-    })
+  const extraIds = new Set((opts?.extra || []).map(f => f.id));
+  // Aliments de l'utilisateur (créés ou déjà scannés) en tête de l'index, sans doublon.
+  const index: IndexEntry[] = opts?.extra?.length
+    ? [...buildSearchIndex(opts.extra), ...foodSearchIndex.filter(x => !extraIds.has(x.f.id))]
+    : foodSearchIndex;
+  const allowed = ({ f }: IndexEntry) => {
+    if (opts?.category && opts.category !== "all" && f.category !== opts.category) return false;
+    if (opts?.diet && !f.diets.includes(opts.diet)) return false;
+    if (opts?.excludeAllergens?.some(a => f.allergens.includes(a))) return false;
+    return true;
+  };
+  const exact = index.filter(x => (!q || x.text.includes(q) || (qx !== q && x.text.includes(qx))) && allowed(x));
+  let fuzzy: Food[] = [];
+  if (q.length >= 4 && exact.length < 8) {
+    const exactIds = new Set(exact.map(x => x.f.id));
+    const hits = fuzzyMatches(index, q);
+    fuzzy = [...hits].map(i => index[i]).filter(x => !exactIds.has(x.f.id) && allowed(x)).map(x => x.f)
+      .sort((a, b) => relevanceScore(a, "") - relevanceScore(b, "") || a.name.length - b.name.length || a.name.localeCompare(b.name, "fr"))
+      .slice(0, 40);
+  }
+  const sorted = exact
     .map(x => x.f)
     // Score = le meilleur (plus bas) entre la requête tapée et sa forme canonique,
     // pour ne pas pénaliser une correspondance directe quand un synonyme est appliqué.
-    .sort((a, b) => scoreFood(a, q, qx) - scoreFood(b, q, qx) || a.name.localeCompare(b.name, "fr"));
+    .sort((a, b) => scoreFood(a, q, qx) - scoreFood(b, q, qx) || a.name.localeCompare(b.name, "fr"))
+    .concat(fuzzy);
   // Dédoublonnage : on ne garde que la première occurrence (la mieux classée) par nom normalisé,
   // pour éviter que des entrées Ciqual quasi identiques ne noient la liste.
   const seen = new Set<string>();
